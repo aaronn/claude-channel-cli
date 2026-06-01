@@ -1,0 +1,47 @@
+{
+  "name": "claude-cli-channel",
+  "version": "0.1.0",
+  "description": "Local Claude Code CLI channel for sending messages into a live Claude Code session.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist",
+    "docs",
+    ".claude-plugin",
+    ".mcp.example.json",
+    "README.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "claude-channel": "./dist/cli.js"
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc",
+    "dev:channel": "tsx ./src/channel.ts",
+    "channel": "node ./dist/channel.js",
+    "send": "node ./dist/cli.js send",
+    "status": "node ./dist/cli.js status",
+    "typecheck": "tsc --noEmit",
+    "typecheck:test": "tsc -p tsconfig.test.json",
+    "test": "node --import tsx --test test/**/*.test.ts",
+    "check": "npm run typecheck && npm run typecheck:test && npm test",
+    "validate:plugin": "claude plugin validate . --strict",
+    "check:local": "npm run check && npm audit --audit-level=moderate && npm run validate:plugin && npm pack --dry-run",
+    "prepack": "npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.22.1",
+    "typescript": "^5.9.3"
+  }
+}

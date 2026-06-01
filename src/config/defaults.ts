@@ -1,0 +1,4 @@
+export const DEFAULT_ASK_TIMEOUT_MS = 1_800_000;
+export const DEFAULT_CHANNEL_HOST = "127.0.0.1";
+export const DEFAULT_CHANNEL_PORT = 8788;
+export const DEFAULT_MAX_BODY_BYTES = 1_048_576;
