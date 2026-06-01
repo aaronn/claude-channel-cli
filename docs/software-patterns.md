@@ -40,9 +40,8 @@ Implications for `claude-cli-channel`:
 ```text
 claude-channel list               # human table
 claude-channel list --json        # machine-readable
-claude-channel ask --to main ...  # explicit target override
-CLAUDE_CHANNEL_TARGET=main ...    # shell/session override
-claude-channel use main           # persistent user default
+claude-channel ask --to ep_ABC234 ... # explicit target override
+CLAUDE_CHANNEL_TARGET=ep_ABC234 ...   # shell/session override
 ```
 
 Do not prompt in agent-facing flows. Interactive selection can be added later for human terminals, but every prompt must have an equivalent flag or config path.
@@ -132,7 +131,7 @@ Target precedence should be:
 ```text
 --to
 CLAUDE_CHANNEL_TARGET
-current target file
+unique workspace match
 exactly one live endpoint
 error
 ```
@@ -199,7 +198,7 @@ Patterns to adopt:
 
 Implications for `claude-cli-channel`:
 
-Once multiple Claude Code windows can register simultaneously, registry/config writes should be guarded by a small filesystem lock instead of relying on last-write-wins JSON writes.
+Endpoint records are written one file per process, so current live-endpoint registration does not need read-modify-write locking. Future shared config writes for labels or persistent current-target settings should be guarded by a small filesystem lock instead of relying on last-write-wins JSON writes.
 
 ## Architecture Principles
 
@@ -212,9 +211,9 @@ protocol/
   request ids, message types, validation, metadata rules
 
 registry/
-  endpoint records, labels, current target, pruning
+  endpoint records, liveness checks, stale pruning
 
-client/
+channel-client/
   target resolution and HTTP calls
 
 channel/
@@ -247,7 +246,7 @@ Until then, endpoint JSON files plus health checks are simpler and more debuggab
 
 ### 3. Treat Current Target as a Context
 
-Use Docker/kubectl-style semantics:
+Use Docker/kubectl-style semantics when persistent targeting lands:
 
 ```text
 list     shows all known live endpoints
@@ -257,7 +256,7 @@ current  prints current target
 env var  overrides current target for one shell/session
 ```
 
-Do not infer current target from repo, branch, or terminal window.
+Today's implemented precedence is `--to`, `CLAUDE_CHANNEL_TARGET`, unique workspace match, exactly one endpoint, then error. Do not infer current target from branch, terminal title, task name, or transcript name.
 
 Identity vocabulary:
 
@@ -342,17 +341,25 @@ These errors should have stable codes in JSON and concise next steps in human ou
 
 ## Recommended Command Shape
 
+Implemented now:
+
 ```sh
 claude-channel list [--json]
+claude-channel status [--to <target>]
+claude-channel tell [--to <target>] <message...>
+claude-channel ask [--to <target>] [--timeout <duration>] <message...>
+claude-channel tell-file [--to <target>] <file|->
+claude-channel ask-file [--to <target>] [--timeout <duration>] <file|->
+```
+
+Future user-owned targeting config:
+
+```sh
 claude-channel current [--json]
 claude-channel use <target>
 claude-channel unuse
 claude-channel label <target> <label>
 claude-channel unlabel <target-or-label>
-claude-channel tell [--to <target>] [--timeout <duration>] <message...>
-claude-channel ask [--to <target>] [--timeout <duration>] <message...>
-claude-channel tell-file [--to <target>] <file>
-claude-channel ask-file [--to <target>] [--timeout <duration>] <file>
 claude-channel prune
 claude-channel doctor
 ```
@@ -410,11 +417,19 @@ Labels belong in config, not endpoint records. A label is user-owned local namin
 
 ## Recommended Next Implementation Order
 
-1. Refactor current state JSON to the persisted schema style.
-2. Extract shared client and target resolution modules.
-3. Add endpoint registry with dynamic ports and liveness checks.
-4. Add `list`, `current`, `use`, `unuse`, `label`, `unlabel`, `prune`, and `doctor`.
-5. Add tests for registry locking, stale endpoint pruning, and ambiguous target resolution.
-6. Add Codex MCP tools on top of the shared client.
+Completed foundation:
+
+1. Endpoint registry with dynamic ports and liveness checks.
+2. Target resolution in `channel-client`.
+3. CLI `list` plus `--to` targeting.
+4. `list_claude_targets` in the Codex MCP server.
+5. Tests for stale endpoint pruning and ambiguous target resolution.
+
+Recommended next order:
+
+1. Add user-owned labels only after real usage shows repeated target selection friction.
+2. Add persistent `current`, `use`, and `unuse` with file locking when labels/config are introduced.
+3. Add `prune` and `doctor` for supportability.
+4. Add registry/config locking tests when shared config writes exist.
 
 Do not add a daemon until the file-backed registry fails a concrete requirement.

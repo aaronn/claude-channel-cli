@@ -1,0 +1,116 @@
+import path from "node:path";
+import { type EndpointCandidate, type EndpointRecord, sortEndpointRecords, toEndpointCandidates } from "../registry/endpoint-record.js";
+import { listLiveEndpoints } from "../registry/endpoint-store.js";
+
+export type TargetResolutionOptions = {
+  target?: string;
+  env?: NodeJS.ProcessEnv;
+  cwd?: string;
+  endpoints?: EndpointRecord[];
+  now?: Date;
+};
+
+export type TargetResolution = {
+  endpoint: EndpointRecord;
+  candidates: EndpointCandidate[];
+  reason: "explicit" | "env" | "single" | "workspace";
+};
+
+export type TargetResolutionErrorCode = "no_claude_targets" | "unknown_claude_target" | "multiple_claude_targets";
+
+export class TargetResolutionError extends Error {
+  readonly code: TargetResolutionErrorCode;
+  readonly candidates: EndpointCandidate[];
+
+  constructor(code: TargetResolutionErrorCode, message: string, candidates: EndpointCandidate[]) {
+    super(message);
+    this.name = "TargetResolutionError";
+    this.code = code;
+    this.candidates = candidates;
+  }
+}
+
+export async function resolveClaudeTarget(options: TargetResolutionOptions = {}): Promise<TargetResolution> {
+  const endpoints = sortEndpointRecords(options.endpoints ?? await listLiveEndpoints({ now: options.now }));
+  const candidates = toEndpointCandidates(endpoints, options.now ?? new Date());
+
+  if (endpoints.length === 0) {
+    throw new TargetResolutionError("no_claude_targets", "No live Claude Code channel endpoints are running.", candidates);
+  }
+
+  const explicitTarget = normalizedTarget(options.target);
+  if (explicitTarget) {
+    return {
+      endpoint: resolveNamedTarget(explicitTarget, endpoints, candidates),
+      candidates,
+      reason: "explicit",
+    };
+  }
+
+  const env = options.env ?? process.env;
+  const envTarget = normalizedTarget(env.CLAUDE_CHANNEL_TARGET);
+  if (envTarget) {
+    return {
+      endpoint: resolveNamedTarget(envTarget, endpoints, candidates),
+      candidates,
+      reason: "env",
+    };
+  }
+
+  if (endpoints.length === 1) {
+    return { endpoint: endpoints[0], candidates, reason: "single" };
+  }
+
+  const workspaceMatch = uniqueWorkspaceMatch(endpoints, options.cwd ?? process.cwd());
+  if (workspaceMatch) {
+    return { endpoint: workspaceMatch, candidates, reason: "workspace" };
+  }
+
+  throw new TargetResolutionError(
+    "multiple_claude_targets",
+    "Multiple Claude Code channel endpoints are running. Specify a target.",
+    candidates,
+  );
+}
+
+function resolveNamedTarget(target: string, endpoints: EndpointRecord[], candidates: EndpointCandidate[]): EndpointRecord {
+  const byIndex = /^\d+$/.test(target) ? endpoints[Number.parseInt(target, 10) - 1] : undefined;
+  if (byIndex) return byIndex;
+
+  const matches = endpoints.filter((endpoint) =>
+    endpoint.endpoint_id === target ||
+    endpoint.display_name === target ||
+    endpoint.project_dir === target
+  );
+
+  if (matches.length === 1) return matches[0];
+
+  if (matches.length > 1) {
+    throw new TargetResolutionError(
+      "multiple_claude_targets",
+      `Target ${target} matches multiple Claude Code channel endpoints.`,
+      toEndpointCandidates(matches),
+    );
+  }
+
+  throw new TargetResolutionError(
+    "unknown_claude_target",
+    `No live Claude Code channel endpoint matched target ${target}.`,
+    candidates,
+  );
+}
+
+function uniqueWorkspaceMatch(endpoints: EndpointRecord[], cwd: string): EndpointRecord | undefined {
+  const matches = endpoints.filter((endpoint) => isSameOrChildPath(cwd, endpoint.project_dir));
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function isSameOrChildPath(child: string, parent: string): boolean {
+  const relative = path.relative(path.resolve(parent), path.resolve(child));
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function normalizedTarget(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}

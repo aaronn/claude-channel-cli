@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseDurationMs, resolveAskTimeoutMs } from "../src/cli/timeout.js";
+import { parseDurationMs, resolveAskTimeoutMs } from "../src/channel-client/timeout.js";
 import { DEFAULT_ASK_TIMEOUT_MS } from "../src/config/defaults.js";
 
 test("resolveAskTimeoutMs defaults to 30 minutes", () => {

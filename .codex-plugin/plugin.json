@@ -1,0 +1,37 @@
+{
+  "name": "claude-cli-channel",
+  "version": "0.1.0",
+  "description": "Send messages from Codex into a live Claude Code session through a local channel.",
+  "author": {
+    "name": "claude-cli-channel maintainers"
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "codex",
+    "mcp",
+    "code-review",
+    "local"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Claude CLI Channel",
+    "shortDescription": "Ask a live Claude Code session from Codex",
+    "longDescription": "Use Claude CLI Channel to send one-way messages or review requests from Codex into a visible local Claude Code session while keeping the existing Claude Code and Codex harnesses separate.",
+    "developerName": "claude-cli-channel maintainers",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Ask Claude Code to review this branch",
+      "Send context to my Claude Code session",
+      "Check whether the Claude channel is running"
+    ],
+    "brandColor": "#6B5BD2",
+    "screenshots": []
+  }
+}

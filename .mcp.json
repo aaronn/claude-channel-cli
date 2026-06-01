@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "claude-cli-channel-codex": {
+      "command": "node",
+      "args": ["./dist/codex-mcp.js"],
+      "cwd": "."
+    }
+  }
+}

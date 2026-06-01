@@ -237,12 +237,13 @@ Target resolution should be:
 
 ```text
 explicit --to
-  > configured current target
+  > CLAUDE_CHANNEL_TARGET
+  > unique workspace match
   > exactly one live endpoint
   > fail with guidance
 ```
 
-Never infer a target from branch name or repo name.
+Never infer a target from branch name, task name, terminal title, or transcript name.
 
 ### Sync Ask Semantics
 
@@ -267,15 +268,12 @@ Human-first commands:
 
 ```sh
 claude-channel list
-claude-channel tell --to main "..."
-claude-channel ask --to main "..."
-claude-channel ask-file --to main /tmp/request.md
-claude-channel label ep_abc main
-claude-channel use main
-claude-channel current
-claude-channel prune
-claude-channel doctor
+claude-channel tell --to ep_ABC234 "..."
+claude-channel ask --to ep_ABC234 "..."
+claude-channel ask-file --to ep_ABC234 -
 ```
+
+Labels, persistent `use`/`current`, `prune`, and `doctor` remain future supportability work.
 
 Machine-friendly output:
 
@@ -286,9 +284,10 @@ Machine-friendly output:
 
 ### Codex MCP UX
 
-Codex should ultimately call MCP tools rather than shell out:
+Codex should call MCP tools rather than shell out when the Codex plugin is installed:
 
 ```text
+status_claude_channel() -> status
 tell_claude(target?, message) -> delivered
 ask_claude(target?, message, timeout_ms?) -> answer
 list_claude_targets() -> endpoints
@@ -329,21 +328,26 @@ First tests:
 
 - Can Claude Code expose the active session UUID to channel servers? If not, do not infer it.
 - Should endpoint files live under `~/.claude-channel` or platform-aware state dirs (`~/Library/Application Support` on macOS, `$XDG_STATE_HOME` on Linux)?
-- Should the default channel port be `0` immediately, or only after the multi-endpoint registry lands?
 - Should `tell` and `ask` remain CLI verbs, or should `send` alias only `tell` for compatibility?
 - Should the Codex MCP server be bundled in the same npm package or published as a second binary?
 
-## Recommended Architecture Direction
+## Architecture Direction
 
-Stay with the current single-process channel for the next milestone, but add multi-endpoint routing before adding any daemon.
+The project now has the intended foundation: one lightweight Claude-side channel process per Claude Code window, file-backed endpoint records, shared target resolution, and no daemon.
+
+Implemented:
+
+1. Endpoint registry with dynamic ports.
+2. `list` and `--to`.
+3. Multi-target support in the shared `channel-client` layer.
+4. Tests around protocol, registry, and resolver.
+5. Codex MCP server exposes `list_claude_targets`.
 
 Next milestone:
 
-1. Endpoint registry with dynamic ports.
-2. `list`, `--to`, `label`, `use`, `current`, `prune`.
-3. Shared client module used by CLI and future Codex MCP server.
-4. Tests around protocol, registry, and resolver.
-5. Codex MCP server exposing `tell_claude` and `ask_claude`.
+1. User-owned labels if endpoint ids become too high-friction.
+2. Persistent `use` / `current` config with locking.
+3. `prune` and `doctor` support commands.
 
 Defer:
 

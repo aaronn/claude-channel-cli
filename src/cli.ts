@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { postChannelMessage } from "./cli/client.js";
+import { askClaude, tellClaude } from "./channel-client/client.js";
+import { readChannelStatus } from "./channel-client/status.js";
+import { TargetResolutionError } from "./channel-client/target-resolver.js";
+import { resolveAskTimeoutMs } from "./channel-client/timeout.js";
 import { readPromptInput } from "./cli/input.js";
-import { readChannelStatus } from "./cli/status.js";
-import { resolveAskTimeoutMs } from "./cli/timeout.js";
+import { formatAmbiguousTargets, formatEndpointList } from "./cli/list-format.js";
 import { startWaitFeedback } from "./cli/wait-feedback.js";
-import { statePath, tokenPath } from "./config/paths.js";
+import { tokenPath } from "./config/paths.js";
+import { toEndpointCandidates } from "./registry/endpoint-record.js";
+import { endpointsDir, listLiveEndpoints } from "./registry/endpoint-store.js";
 
 type SendOptions = {
   sender?: string;
   json?: boolean;
+  to?: string;
 };
 
 type AskOptions = SendOptions & {
@@ -18,26 +23,25 @@ type AskOptions = SendOptions & {
   progress?: boolean;
 };
 
-async function status(): Promise<void> {
-  const result = await readChannelStatus({ statePath, tokenPath });
+type ListOptions = {
+  json?: boolean;
+};
+
+async function list(options: ListOptions): Promise<void> {
+  const candidates = toEndpointCandidates(await listLiveEndpoints());
+  process.stdout.write(options.json ? `${JSON.stringify({ targets: candidates }, null, 2)}\n` : formatEndpointList(candidates));
+}
+
+async function status(options: SendOptions): Promise<void> {
+  const result = await readChannelStatus({ target: options.to, endpointsPath: endpointsDir, tokenPath });
   process.stdout.write(
     JSON.stringify(result.report, null, 2) + "\n",
   );
   if (!result.ok) process.exitCode = 1;
 }
 
-async function send(path: "/tell" | "/ask", message: string, options: SendOptions): Promise<string> {
-  const response = await postChannelMessage(path, message, options);
-
-  if (!response.ok) {
-    throw new Error(`send failed: HTTP ${response.status} ${await response.text()}`);
-  }
-
-  return response.text();
-}
-
 async function tell(message: string, options: SendOptions): Promise<void> {
-  process.stdout.write(`${await send("/tell", message, options)}\n`);
+  process.stdout.write(`${JSON.stringify(await tellClaude(message, { ...options, target: options.to }))}\n`);
 }
 
 async function ask(message: string, options: AskOptions): Promise<void> {
@@ -45,16 +49,12 @@ async function ask(message: string, options: AskOptions): Promise<void> {
   const feedback = options.progress === false ? undefined : startWaitFeedback({ timeoutMs: resolvedTimeoutMs });
 
   try {
-    const response = await postChannelMessage("/ask", message, {
+    const response = await askClaude(message, {
       ...options,
-      searchParams: new URLSearchParams({ timeout_ms: String(resolvedTimeoutMs) }),
+      target: options.to,
+      timeoutMs: resolvedTimeoutMs,
     });
-
-    if (!response.ok) {
-      throw new Error(`ask failed: HTTP ${response.status} ${await response.text()}`);
-    }
-
-    process.stdout.write(`${await response.text()}\n`);
+    process.stdout.write(`${JSON.stringify(response)}\n`);
   } finally {
     feedback?.stop();
   }
@@ -70,9 +70,22 @@ program
 program
   .command("status")
   .description("Print channel connection state and health.")
-  .action(async () => {
+  .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
+  .action(async (options: SendOptions) => {
     try {
-      await status();
+      await status(options);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+program
+  .command("list")
+  .description("List live Claude Code channel endpoints.")
+  .option("--json", "Print machine-readable JSON.")
+  .action(async (options: ListOptions) => {
+    try {
+      await list(options);
     } catch (error) {
       fail(error);
     }
@@ -82,6 +95,7 @@ program
   .command("tell")
   .description("Send a one-way message into the running Claude Code session.")
   .argument("<message...>", "Message text.")
+  .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
   .option("--json", "Send as an application/json payload.")
   .action(async (parts: string[], options: SendOptions) => {
@@ -96,6 +110,7 @@ program
   .command("send")
   .description("Alias for tell.")
   .argument("<message...>", "Message text.")
+  .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
   .option("--json", "Send as an application/json payload.")
   .action(async (parts: string[], options: SendOptions) => {
@@ -110,6 +125,7 @@ program
   .command("tell-file")
   .description("Send a file's contents into the running Claude Code session.")
   .argument("<file>", "File containing the message, or - for stdin.")
+  .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
   .option("--json", "Send as an application/json payload.")
   .action(async (file: string, options: SendOptions) => {
@@ -124,6 +140,7 @@ program
   .command("send-file")
   .description("Alias for tell-file.")
   .argument("<file>", "File containing the message, or - for stdin.")
+  .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
   .option("--json", "Send as an application/json payload.")
   .action(async (file: string, options: SendOptions) => {
@@ -138,6 +155,7 @@ program
   .command("ask")
   .description("Send a request to Claude Code and wait for complete_channel_request.")
   .argument("<message...>", "Message text.")
+  .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
   .option("--json", "Send as an application/json payload.")
   .option("--timeout <duration>", "How long to wait, such as 30s, 30m, or 1800000ms.")
@@ -155,6 +173,7 @@ program
   .command("ask-file")
   .description("Send a file's contents to Claude Code and wait for complete_channel_request.")
   .argument("<file>", "File containing the request, or - for stdin.")
+  .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
   .option("--json", "Send as an application/json payload.")
   .option("--timeout <duration>", "How long to wait, such as 30s, 30m, or 1800000ms.")
@@ -169,9 +188,21 @@ program
   });
 
 function fail(error: unknown): never {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = error instanceof TargetResolutionError
+    ? formatTargetResolutionError(error)
+    : error instanceof Error ? error.message : String(error);
   process.stderr.write(`${message}\n`);
   process.exit(1);
+}
+
+function formatTargetResolutionError(error: TargetResolutionError): string {
+  if (error.code === "multiple_claude_targets") {
+    return formatAmbiguousTargets(error.candidates);
+  }
+  if (error.candidates.length > 0) {
+    return `${error.message}\n${formatEndpointList(error.candidates).trimEnd()}`;
+  }
+  return error.message;
 }
 
 await program.parseAsync(process.argv);

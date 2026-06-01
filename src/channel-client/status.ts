@@ -1,16 +1,16 @@
 import { formatChannelUrl } from "./client.js";
-import {
-  readState as readDefaultState,
-  statePath as defaultStatePath,
-  tokenPath as defaultTokenPath,
-  type BridgeState,
-} from "../config/paths.js";
+import { tokenPath as defaultTokenPath } from "../config/paths.js";
+import type { EndpointCandidate, EndpointRecord } from "../registry/endpoint-record.js";
+import { endpointsDir as defaultEndpointsDir } from "../registry/endpoint-store.js";
+import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
 
 export type ChannelStatusReport = {
-  state: BridgeState;
+  target: string;
+  endpoint: EndpointRecord;
+  candidates: EndpointCandidate[];
   health: unknown;
   reachable: boolean;
-  state_path: string;
+  endpoints_path: string;
   token_path: string;
 };
 
@@ -19,25 +19,26 @@ export type ChannelStatusResult = {
   report: ChannelStatusReport;
 };
 
-export type ChannelStatusOptions = {
-  readState?: () => Promise<BridgeState>;
+export type ChannelStatusOptions = TargetResolutionOptions & {
   fetchFn?: typeof fetch;
-  statePath?: string;
+  endpointsPath?: string;
   tokenPath?: string;
 };
 
 export async function readChannelStatus(options: ChannelStatusOptions = {}): Promise<ChannelStatusResult> {
-  const readState = options.readState ?? readDefaultState;
   const fetchFn = options.fetchFn ?? fetch;
-  const state = await readState();
+  const resolved = await resolveClaudeTarget(options);
+  const endpoint = resolved.endpoint;
   const baseReport = {
-    state,
-    state_path: options.statePath ?? defaultStatePath,
+    target: endpoint.endpoint_id,
+    endpoint,
+    candidates: resolved.candidates,
+    endpoints_path: options.endpointsPath ?? defaultEndpointsDir,
     token_path: options.tokenPath ?? defaultTokenPath,
   };
 
   try {
-    const response = await fetchFn(formatChannelUrl(state, "/health"), { method: "GET" });
+    const response = await fetchFn(formatChannelUrl(endpoint, "/health"), { method: "GET" });
     const text = await response.text();
     if (!response.ok) {
       return {

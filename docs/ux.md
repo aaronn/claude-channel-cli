@@ -8,33 +8,51 @@ Send this to that visible Claude Code thread, and optionally wait for its answer
 
 ## Primary Commands
 
+Codex Desktop should use the plugin tools:
+
+```text
+status_claude_channel
+list_claude_targets
+tell_claude
+ask_claude
+```
+
+Human shells and development fallbacks use the CLI:
+
 ```sh
 claude-channel tell "FYI from Codex..."
 claude-channel ask "Please review this plan and answer Codex."
 claude-channel tell-file -
 claude-channel ask-file -
+claude-channel list
 claude-channel status
 ```
 
-`send` remains an alias for `tell`. `send-file` remains an alias for `tell-file`.
+`send` remains a CLI alias for `tell`. `send-file` remains a CLI alias for `tell-file`.
 
 ## Human Model
 
 `tell` is fire-and-forget. The user watches Claude Code handle the message in its normal terminal.
 
-`ask` waits for Claude Code to explicitly complete the request. Claude should call `complete_channel_request` once it has the final answer. The CLI prints wait progress to stderr and leaves stdout for the final machine-readable response.
+`ask_claude` and CLI `ask` wait for Claude Code to explicitly complete the request. Claude should call `complete_channel_request` once it has the final answer. The CLI prints wait progress to stderr and leaves stdout for the final machine-readable response; the Codex MCP tool returns structured content directly.
 
 `ask` defaults to 30 minutes because review-sized work can be slow. The timeout is still explicit and configurable with `--timeout`, `--timeout-ms`, or `CLAUDE_CHANNEL_ASK_TIMEOUT_MS`.
 
 ## Prompt Input
 
-Short prompts should be sent inline:
+From Codex, short prompts should be sent through `ask_claude`:
+
+```text
+ask_claude({ message: "From Codex: review the current plan and return the answer with complete_channel_request." })
+```
+
+From a shell, short prompts should be sent inline:
 
 ```sh
 claude-channel ask "From Codex: review the current plan and return the answer with complete_channel_request."
 ```
 
-Generated multiline prompts should use stdin:
+Generated multiline shell prompts should use stdin:
 
 ```sh
 printf '%s\n' "$prompt" | claude-channel ask-file -
@@ -70,48 +88,48 @@ User asks Codex to request Claude's review and then implement agreed fixes. Code
 
 ## Ambiguity
 
-When multiple live channel endpoints exist, future versions should require an explicit target:
+When multiple live channel endpoints exist, commands require an explicit target unless the current working directory is inside exactly one registered endpoint project directory:
 
 ```sh
 claude-channel list
-claude-channel ask --to ep_abc123 "..."
-claude-channel label ep_abc123 main
-claude-channel use ep_abc123
+claude-channel ask --to ep_ABC234 "..."
 ```
 
-If exactly one endpoint exists, `--to` can be optional. If multiple endpoints exist and no default target has been set, the command should fail with a clear prompt to run `claude-channel list`.
+If exactly one endpoint exists, `--to` can be optional. If multiple endpoints exist and no unique workspace match exists, the command fails with a clear candidate list.
 
 Target selection precedence:
 
 ```text
 --to
 CLAUDE_CHANNEL_TARGET
-configured current target
+unique workspace match
 exactly one live endpoint
 error
 ```
 
-Do not infer target from repo, branch, terminal title, cwd, or Claude Code transcript names.
+Do not infer target from branch, task name, terminal title, or Claude Code transcript name.
+
+Codex should handle ambiguity by showing the candidate names/projects and asking the user which visible Claude Code window to use. Once the user chooses, Codex should retry with the chosen endpoint id. The user should not have to type the id unless they want to.
 
 ## Multiple Windows
 
-`claude-channel list` should show live channel endpoints with enough context for a human to choose:
+`claude-channel list` shows live channel endpoints with enough context for a human to choose:
 
 ```text
-CURRENT  TARGET     STATUS  PROJECT                         PID    AGE
-*        main       live    /path/to/app          12345  12m
-         ep_def456  live    /path/to/claude-cli-channel    12399  3m
+# TARGET     NAME                PROJECT                         PID    SEEN
+1 ep_ABC234  app                 /path/to/app                    12345  12s
+2 ep_DEF567  claude-cli-channel  /path/to/claude-cli-channel     12399  3s
 ```
 
-Labels are user-owned aliases:
+Future labels are user-owned aliases:
 
 ```sh
-claude-channel label ep_def456 channel
+claude-channel label ep_DEF567 channel
 claude-channel use channel
 claude-channel ask --to main "..."
 ```
 
-This keeps the UX flexible for users who keep one long-lived Claude Code thread per repo, one per task, one per branch, or any other workflow.
+Labels and persistent current-target config are intentionally deferred until the endpoint registry proves useful in real local workflows. This keeps today's behavior safe without making users memorize endpoint ids for every command.
 
 ## Non-Goals
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildChannelMessageBody, resolveSender } from "../src/cli/client.js";
+import { buildChannelMessageBody, resolveSender } from "../src/channel-client/client.js";
 
 test("resolveSender uses explicit sender before environment", () => {
   assert.equal(resolveSender("reviewer", { CLAUDE_CHANNEL_SENDER: "env-sender" }), "reviewer");

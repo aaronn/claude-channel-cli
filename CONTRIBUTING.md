@@ -2,7 +2,7 @@
 
 Thanks for working on `claude-cli-channel`.
 
-This project is an early-preview local developer tool. It is not a production multi-window router yet, and changes should keep that boundary clear.
+This project is an early-preview local developer tool. It supports multiple live local endpoints through a file-backed registry, but it is not a production daemon, mailbox, or workflow router. Changes should keep that boundary clear.
 
 ## Local Setup
 
@@ -18,7 +18,9 @@ npm run validate:plugin
 claude --plugin-dir .
 ```
 
-For the current end-to-end channel smoke test, set `CLAUDE_CLI_CHANNEL_DIR` to this checkout and use the example MCP config:
+Codex plugin packaging lives in `.codex-plugin/plugin.json`, with root-level `skills/` and `.mcp.json`. The checked-in `.mcp.json` is for Codex plugin tools; use `.mcp.example.json` as the Claude Code receiver project's `.mcp.json` for channel smoke tests. If this checkout is also the receiver project, any temporary `.mcp.json` swap is machine-local and must not be committed.
+
+For the current end-to-end channel smoke test, set `CLAUDE_CLI_CHANNEL_DIR` to this checkout and use `.mcp.example.json` as the Claude Code receiver project's `.mcp.json`:
 
 ```sh
 export CLAUDE_CLI_CHANNEL_DIR="$PWD"
@@ -39,10 +41,11 @@ npm run check:local
 
 ## Change Expectations
 
-- Keep the CLI and HTTP behavior documented in README and `docs/protocol.md`.
+- Keep the CLI, Codex MCP, and HTTP behavior documented in README and `docs/protocol.md`.
 - Add focused tests for new behavior and bug fixes.
 - Do not commit `dist/`, `node_modules/`, local tokens, state files, or machine-specific paths.
-- Do not expand scope into multi-window routing unless the change explicitly targets that milestone.
+- Keep target resolution centralized in `src/channel-client` and endpoint lifecycle code in `src/registry`.
+- Do not add labels, persistent current-target config, daemons, mailbox semantics, or hidden routing inference unless the change explicitly targets that milestone.
 
 ## Preview Status
 
