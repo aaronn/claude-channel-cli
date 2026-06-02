@@ -29,7 +29,7 @@ export function createClaudeChannel(pendingRequests: PendingRequests): ClaudeCha
     },
   );
 
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  server.setRequestHandler(ListToolsRequestSchema, () => ({
     tools: [
       {
         name: COMPLETE_TOOL_NAME,
@@ -57,7 +57,7 @@ export function createClaudeChannel(pendingRequests: PendingRequests): ClaudeCha
     ],
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (req) =>
+  server.setRequestHandler(CallToolRequestSchema, (req) =>
     callClaudeChannelTool(req.params.name, req.params.arguments, pendingRequests));
 
   return {

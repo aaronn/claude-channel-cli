@@ -21,8 +21,8 @@ const candidates = [
 test("formatEndpointList renders numbered targets", () => {
   const output = formatEndpointList(candidates);
 
-  assert.match(output, /#  TARGET/);
-  assert.match(output, /1  ep_ABC234/);
+  assert.match(output, /# {2}TARGET/);
+  assert.match(output, /1 {2}ep_ABC234/);
   assert.match(output, /\/repo\/app/);
 });
 

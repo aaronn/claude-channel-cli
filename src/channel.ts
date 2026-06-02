@@ -45,18 +45,23 @@ async function registerEndpoint(port: number): Promise<void> {
     projectDir,
   });
 
-  refreshTimer = setInterval(async () => {
+  refreshTimer = setInterval(() => {
     if (!endpointRecord) return;
-    try {
-      endpointRecord = await refreshEndpoint(endpointRecord);
-    } catch (error) {
-      console.error(`claude-cli-channel failed to refresh endpoint ${endpointRecord.endpoint_id}: ${errorMessage(error)}`);
-    }
+    void refreshCurrentEndpoint();
   }, 30_000);
 
   console.error(`claude-cli-channel listening on http://${config.host}:${port}`);
   console.error(`claude-cli-channel target: ${endpointRecord.display_name}`);
   console.error(`claude-cli-channel id: ${endpointRecord.endpoint_id}`);
+}
+
+async function refreshCurrentEndpoint(): Promise<void> {
+  if (!endpointRecord) return;
+  try {
+    endpointRecord = await refreshEndpoint(endpointRecord);
+  } catch (error) {
+    console.error(`claude-cli-channel failed to refresh endpoint ${endpointRecord.endpoint_id}: ${errorMessage(error)}`);
+  }
 }
 
 async function shutdown(): Promise<void> {

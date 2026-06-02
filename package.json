@@ -27,10 +27,11 @@
     "codex-mcp": "node ./dist/codex-mcp.js",
     "send": "node ./dist/cli.js send",
     "status": "node ./dist/cli.js status",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "typecheck:test": "tsc -p tsconfig.test.json",
     "test": "node --import tsx --test test/**/*.test.ts",
-    "check": "npm run typecheck && npm run typecheck:test && npm test",
+    "check": "npm run lint && npm run typecheck && npm run typecheck:test && npm test",
     "validate:plugin": "claude plugin validate . --strict",
     "check:local": "npm run check && npm audit --audit-level=moderate && npm run validate:plugin && npm pack --dry-run",
     "prepack": "npm run build"
@@ -43,8 +44,12 @@
     "commander": "^14.0.3"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^24.10.1",
+    "eslint": "^10.4.1",
+    "globals": "^17.6.0",
     "tsx": "^4.22.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.60.1"
   }
 }

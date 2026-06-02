@@ -18,33 +18,41 @@ export type BridgeHttpServerOptions = {
 };
 
 export function createBridgeHttpServer(options: BridgeHttpServerOptions): http.Server {
-  return http.createServer(async (req, res) => {
-    try {
-      const url = new URL(req.url ?? "/", `http://${options.host}`);
-
-      if (req.method === "GET" && url.pathname === "/health") {
-        sendJson(res, 200, { ok: true, pid: process.pid });
-        return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/tell") {
-        await handleTell(req, res, options);
-        return;
-      }
-
-      if (req.method === "POST" && url.pathname === "/ask") {
-        await handleAsk(req, res, url, options);
-        return;
-      }
-
-      sendText(res, 404, "not found\n");
-    } catch (error) {
-      const status = statusForError(error);
-      const message = status === 500 ? "internal server error" : errorMessage(error);
-      if (status === 500) console.error(`claude-cli-channel unexpected HTTP error: ${errorMessage(error)}`);
-      sendJson(res, status, { ok: false, error: message });
-    }
+  return http.createServer((req, res) => {
+    void handleHttpRequest(req, res, options);
   });
+}
+
+async function handleHttpRequest(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  options: BridgeHttpServerOptions,
+): Promise<void> {
+  try {
+    const url = new URL(req.url ?? "/", `http://${options.host}`);
+
+    if (req.method === "GET" && url.pathname === "/health") {
+      sendJson(res, 200, { ok: true, pid: process.pid });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/tell") {
+      await handleTell(req, res, options);
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/ask") {
+      await handleAsk(req, res, url, options);
+      return;
+    }
+
+    sendText(res, 404, "not found\n");
+  } catch (error) {
+    const status = statusForError(error);
+    const message = status === 500 ? "internal server error" : errorMessage(error);
+    if (status === 500) console.error(`claude-cli-channel unexpected HTTP error: ${errorMessage(error)}`);
+    sendJson(res, status, { ok: false, error: message });
+  }
 }
 
 async function handleTell(

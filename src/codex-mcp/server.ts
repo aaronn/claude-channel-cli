@@ -50,7 +50,7 @@ export function createCodexChannelMcpServer(deps: CodexChannelToolDeps = default
     },
   );
 
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  server.setRequestHandler(ListToolsRequestSchema, () => ({
     tools: listCodexChannelTools(),
   }));
 

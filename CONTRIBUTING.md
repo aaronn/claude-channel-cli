@@ -39,7 +39,7 @@ Run the full local check before opening a PR:
 npm run check:local
 ```
 
-`npm run check:local` runs TypeScript checks, tests, `npm audit`, Claude plugin validation, and package dry-run. CI remains Node-only because standard GitHub Actions runners do not include Claude Code.
+`npm run check:local` runs linting, TypeScript checks, tests, `npm audit`, Claude plugin validation, and package dry-run. CI remains Node-only because standard GitHub Actions runners do not include Claude Code.
 
 ## Change Expectations
 

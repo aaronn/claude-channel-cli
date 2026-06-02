@@ -1,11 +1,13 @@
 import type http from "node:http";
 import { HttpError } from "../errors.js";
 
+type BodyChunk = Buffer | Uint8Array | string;
+
 export async function readBody(req: http.IncomingMessage, maxBodyBytes: number): Promise<string> {
   const chunks: Buffer[] = [];
   let bytes = 0;
 
-  for await (const chunk of req) {
+  for await (const chunk of req as AsyncIterable<BodyChunk>) {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     bytes += buffer.byteLength;
 

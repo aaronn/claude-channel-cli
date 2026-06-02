@@ -285,7 +285,7 @@ CLAUDE_CHANNEL_PORT=8790 claude --dangerously-load-development-channels server:c
 npm run check:local
 ```
 
-`npm run check:local` includes TypeScript checks, tests, `npm audit`, Claude plugin validation, and package dry-run.
+`npm run check:local` includes linting, TypeScript checks, tests, `npm audit`, Claude plugin validation, and package dry-run.
 
 CI intentionally stays Node-only because GitHub Actions runners do not have Claude Code or Codex plugin validation installed by default.
 

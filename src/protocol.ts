@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 
 const META_KEY_RE = /^[A-Za-z0-9_]+$/;
 const MAX_META_VALUE_LENGTH = 200;
+// Metadata is serialized into Claude channel attributes, so control characters are intentionally rejected.
+// eslint-disable-next-line no-control-regex
 const UNSAFE_META_VALUE_RE = /[\u0000-\u001F\u007F<>"'`]/;
 const REQUEST_ID_RE = /^req_[A-Za-z0-9]+$/;
 export const DEFAULT_CHANNEL_SENDER = "codex";
