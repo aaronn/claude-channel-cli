@@ -36,7 +36,9 @@ claude-channel status
 
 `ask_claude` and CLI `ask` wait for Claude Code to explicitly complete the request. Claude should call `complete_channel_request` once it has the final answer.
 
-The CLI prints wait progress to stderr and leaves stdout for the final machine-readable response. The Codex MCP tool returns structured content directly.
+The CLI prints wait progress to stderr and leaves stdout for Claude's final answer text. Use `--output json` when a shell script needs the full response envelope.
+
+The Codex MCP tool returns structured content directly.
 
 `ask` defaults to 30 minutes because review-sized work can be slow. The timeout is still explicit and configurable with `--timeout`, `--timeout-ms`, or `CLAUDE_CHANNEL_ASK_TIMEOUT_MS`.
 
@@ -68,14 +70,22 @@ claude-channel ask-file prompts/review.md
 
 This avoids requiring pre-created prompt files for normal usage while keeping files available for stable review rubrics.
 
-For very large CLI-fallback reviews, redirect the JSON response to a visible file and parse the `answer` field:
+For very large CLI-fallback reviews, redirect the answer text to a visible file:
 
 ```sh
-printf '%s\n' "$prompt" | claude-channel ask-file - > claude-review.json
+printf '%s\n' "$prompt" | claude-channel ask-file - > claude-review.md
+```
+
+When a script needs request metadata, ask for JSON explicitly:
+
+```sh
+printf '%s\n' "$prompt" | claude-channel ask-file --output json - > claude-review.json
 jq -r .answer claude-review.json
 ```
 
-Do this only for expected long output. Normal Codex MCP tool calls already return structured data, so Codex can read `answer` directly.
+Text-mode `ask` exits `0` for `answered`, `3` for `needs_user`, `4` for `declined`, and `5` for `failed`. CLI or transport failures exit `1`.
+
+Normal Codex MCP tool calls already return structured data, so Codex can read `answer` directly.
 
 ## Verbatim Prompts
 

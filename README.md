@@ -253,7 +253,13 @@ Ask for a response:
 claude-channel ask "From Codex: review this and complete the request."
 ```
 
-`ask` defaults to a 30-minute timeout for review-sized requests. While waiting, the CLI writes progress to stderr every 30 seconds; stdout remains the final JSON response.
+`ask` defaults to a 30-minute timeout for review-sized requests. While waiting, the CLI writes progress to stderr every 30 seconds; stdout remains Claude's final answer text.
+
+For the structured response envelope, use `--output json`:
+
+```sh
+claude-channel ask --output json "From Codex: review this and complete the request."
+```
 
 Ask with generated multiline input:
 
@@ -270,12 +276,20 @@ Ask with a reusable prompt file owned by the user/project:
 claude-channel ask-file prompts/review.md
 ```
 
-For very large CLI-fallback reviews, redirect the JSON response to a file and parse `answer` from it:
+For very large CLI-fallback reviews, redirect the answer text to a visible file:
 
 ```sh
-claude-channel ask-file - > claude-review.json
+claude-channel ask-file - > claude-review.md
+```
+
+When a script needs the full envelope, ask for JSON explicitly:
+
+```sh
+claude-channel ask-file --output json - > claude-review.json
 jq -r .answer claude-review.json
 ```
+
+Completion statuses map to process exit codes: `0` for `answered`, `3` for `needs_user`, `4` for `declined`, and `5` for `failed`. CLI or transport failures exit `1`.
 
 Set a custom ask timeout:
 

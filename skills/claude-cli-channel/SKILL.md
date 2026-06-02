@@ -27,7 +27,8 @@ Use the bundled `claude-cli-channel` MCP tools to communicate with the user's li
 - When content comes from another tool or plugin, summarize it only if the user asked for a summary. If the user asks to send it exactly, pass the selected text exactly.
 - Keep messages explicit about their source, e.g. start with `From Codex:`.
 - After `ask_claude` returns, use the structured `answer` field. Do not dump raw JSON unless debugging.
-- For very large CLI fallback reviews, redirect JSON to a visible file and parse `.answer` instead of relying on terminal output capture.
+- CLI fallback `ask` and `ask-file` print Claude's answer text by default. Use `--output json` only when the full response envelope is needed.
+- For very large CLI fallback reviews, redirect answer text to a visible file instead of relying on terminal output capture.
 - When multiple live targets exist, ask the user to choose from `candidates`; never guess from branch names, task names, terminal titles, or transcript names.
 - Prefer endpoint ids for retries and scripts. Numeric list indexes are acceptable only for immediate human CLI fallback.
 - If `status_claude_channel` reports the channel is not reachable, tell the user the channel is not running and ask them to start Claude Code with the `claude-cli-channel` channel enabled.
@@ -41,5 +42,6 @@ claude-channel list
 claude-channel status
 claude-channel ask --to ep_ABC234 "From Codex: review this plan and return your answer with complete_channel_request."
 printf '%s\n' "$prompt" | claude-channel ask-file --to ep_ABC234 -
+printf '%s\n' "$prompt" | claude-channel ask-file --output json --to ep_ABC234 - > claude-review.json
 printf '%s\n' "$prompt" | claude-channel tell-file --to ep_ABC234 -
 ```

@@ -4,6 +4,12 @@ import { askClaude, tellClaude } from "./channel-client/client.js";
 import { readChannelStatus } from "./channel-client/status.js";
 import { TargetResolutionError } from "./channel-client/target-resolver.js";
 import { resolveAskTimeoutMs } from "./channel-client/timeout.js";
+import {
+  exitCodeForAskStatus,
+  parseAskOutputFormat,
+  renderAskResponse,
+  statusSummaryForAskStatus,
+} from "./cli/ask-output.js";
 import { readPromptInput } from "./cli/input.js";
 import { formatAmbiguousTargets, formatEndpointList } from "./cli/list-format.js";
 import { startWaitFeedback } from "./cli/wait-feedback.js";
@@ -13,11 +19,11 @@ import { endpointsDir, listLiveEndpoints } from "./registry/endpoint-store.js";
 
 type SendOptions = {
   sender?: string;
-  json?: boolean;
   to?: string;
 };
 
 type AskOptions = SendOptions & {
+  output?: string;
   timeout?: string;
   timeoutMs?: string;
   progress?: boolean;
@@ -44,20 +50,27 @@ async function status(options: SendOptions): Promise<void> {
 }
 
 async function tell(message: string, options: SendOptions): Promise<void> {
-  process.stdout.write(`${JSON.stringify(await tellClaude(message, { ...options, target: options.to }))}\n`);
+  process.stdout.write(`${JSON.stringify(await tellClaude(message, {
+    target: options.to,
+    sender: options.sender,
+  }))}\n`);
 }
 
 async function ask(message: string, options: AskOptions): Promise<void> {
+  const outputFormat = parseAskOutputFormat(options.output);
   const resolvedTimeoutMs = resolveAskTimeoutMs(options);
   const feedback = options.progress === false ? undefined : startWaitFeedback({ timeoutMs: resolvedTimeoutMs });
 
   try {
     const response = await askClaude(message, {
-      ...options,
       target: options.to,
+      sender: options.sender,
       timeoutMs: resolvedTimeoutMs,
     });
-    process.stdout.write(`${JSON.stringify(response)}\n`);
+    process.stdout.write(renderAskResponse(response, outputFormat));
+    const summary = outputFormat === "text" ? statusSummaryForAskStatus(response.status) : undefined;
+    if (summary) process.stderr.write(summary);
+    process.exitCode = exitCodeForAskStatus(response.status);
   } finally {
     feedback?.stop();
   }
@@ -100,7 +113,6 @@ program
   .argument("<message...>", "Message text.")
   .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
-  .option("--json", "Send as an application/json payload.")
   .action(async (parts: string[], options: SendOptions) => {
     try {
       await tell(parts.join(" "), options);
@@ -115,7 +127,6 @@ program
   .argument("<message...>", "Message text.")
   .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
-  .option("--json", "Send as an application/json payload.")
   .action(async (parts: string[], options: SendOptions) => {
     try {
       await tell(parts.join(" "), options);
@@ -130,7 +141,6 @@ program
   .argument("<file>", "File containing the message, or - for stdin.")
   .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
-  .option("--json", "Send as an application/json payload.")
   .action(async (file: string, options: SendOptions) => {
     try {
       await tell(await readPromptInput(file), options);
@@ -145,7 +155,6 @@ program
   .argument("<file>", "File containing the message, or - for stdin.")
   .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
-  .option("--json", "Send as an application/json payload.")
   .action(async (file: string, options: SendOptions) => {
     try {
       await tell(await readPromptInput(file), options);
@@ -160,7 +169,7 @@ program
   .argument("<message...>", "Message text.")
   .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
-  .option("--json", "Send as an application/json payload.")
+  .option("-o, --output <format>", "Output format: text or json. Defaults to text.")
   .option("--timeout <duration>", "How long to wait, such as 30s, 30m, or 1800000ms.")
   .option("--timeout-ms <ms>", "How long to wait in milliseconds.")
   .option("--no-progress", "Disable waiting progress messages on stderr.")
@@ -178,7 +187,7 @@ program
   .argument("<file>", "File containing the request, or - for stdin.")
   .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
-  .option("--json", "Send as an application/json payload.")
+  .option("-o, --output <format>", "Output format: text or json. Defaults to text.")
   .option("--timeout <duration>", "How long to wait, such as 30s, 30m, or 1800000ms.")
   .option("--timeout-ms <ms>", "How long to wait in milliseconds.")
   .option("--no-progress", "Disable waiting progress messages on stderr.")

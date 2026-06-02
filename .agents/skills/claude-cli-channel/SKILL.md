@@ -55,7 +55,8 @@ Use the local `claude-cli-channel` Codex MCP tools when they are installed. In a
 - If the user says "verbatim", "exactly", "send this block", or gives a fenced/quoted prompt, send only that exact block as the Claude-facing prompt. Preserve wording, ordering, and whitespace.
 - For long or multiline exact prompts, pass the block directly as MCP `message`. In CLI fallback, stream only that block to `ask-file -` or `tell-file -`; never include Codex-only handling instructions in file/stdin payloads.
 - When content comes from another tool or plugin, summarize it only if the user asked for a summary. If the user asks to send it exactly, pass the selected text exactly.
-- After `ask_claude` or `ask` returns, use the `answer` field. Do not dump raw JSON unless debugging.
-- For very large CLI fallback reviews, redirect JSON to a visible file and parse `.answer` instead of relying on terminal output capture.
+- After `ask_claude` returns, use the structured `answer` field. Do not dump raw JSON unless debugging.
+- CLI fallback `ask` and `ask-file` print Claude's answer text by default. Use `--output json` only when the full response envelope is needed.
+- For very large CLI fallback reviews, redirect answer text to a visible file instead of relying on terminal output capture.
 - If `claude-channel status` fails, tell the user the channel is not running and ask them to start Claude Code with the `claude-cli-channel` channel enabled.
 - Keep messages explicit about their source, e.g. start with `From Codex:`.

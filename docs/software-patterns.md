@@ -347,9 +347,9 @@ Implemented now:
 claude-channel list [--json]
 claude-channel status [--to <target>]
 claude-channel tell [--to <target>] <message...>
-claude-channel ask [--to <target>] [--timeout <duration>] <message...>
+claude-channel ask [--to <target>] [--timeout <duration>] [--output text|json] <message...>
 claude-channel tell-file [--to <target>] <file|->
-claude-channel ask-file [--to <target>] [--timeout <duration>] <file|->
+claude-channel ask-file [--to <target>] [--timeout <duration>] [--output text|json] <file|->
 ```
 
 Future user-owned targeting config:

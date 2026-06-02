@@ -278,7 +278,7 @@ Labels, persistent `use`/`current`, `prune`, and `doctor` remain future supporta
 Machine-friendly output:
 
 - human-readable by default
-- `--json` or `--format json` for scripts and agents
+- `--output json` for scripts and agents that need the full `ask` envelope
 - errors on stderr with actionable next steps
 - non-zero exit on failure
 
