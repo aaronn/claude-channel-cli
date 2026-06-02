@@ -80,6 +80,7 @@ async function handleAsk(
   const requestId = createRequestId();
   const content = await readMessage(req, options.maxBodyBytes);
   const waitForReply = options.pendingRequests.waitFor(requestId, timeoutMs);
+  void waitForReply.catch(() => undefined);
 
   try {
     await options.channel.emitAsk(requestId, content, {

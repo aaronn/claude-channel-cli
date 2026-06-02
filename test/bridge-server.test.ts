@@ -243,6 +243,31 @@ test("POST /ask returns 504 when Claude does not complete the request", async ()
   }
 });
 
+test("POST /ask returns generic 500 when emitting the channel request fails", async () => {
+  const originalConsoleError = console.error;
+  const server = await startServer({
+    channel: {
+      server: {} as ClaudeChannel["server"],
+      emitTell: async () => {},
+      emitAsk: async () => {
+        throw new Error("internal channel failure");
+      },
+    },
+  });
+
+  try {
+    console.error = () => {};
+    const response = await post(server.baseUrl, "/ask", "question");
+    const body = await response.json();
+
+    assert.equal(response.status, 500);
+    assert.deepEqual(body, { ok: false, error: "internal server error" });
+  } finally {
+    console.error = originalConsoleError;
+    await server.close();
+  }
+});
+
 test("POST /tell returns 400 for malformed JSON", async () => {
   const server = await startServer();
   try {

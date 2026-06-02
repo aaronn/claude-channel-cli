@@ -9,7 +9,7 @@ Use the local `claude-cli-channel` Codex MCP tools when they are installed. In a
 
 ## Workflow
 
-1. List available Claude targets with `list_claude_targets` when the tool is available. If there is exactly one target, use it. If there are multiple targets and the user has not already identified the right one, present the numbered candidates and ask which visible Claude Code window to use.
+1. List available Claude targets with `list_claude_targets` when the tool is available. If there is one target, use it. If there are several, show the numbered candidates and ask which visible Claude Code window to use.
 
 2. Check the selected target with `status_claude_channel`, passing `target` when one was selected.
 
@@ -17,7 +17,7 @@ Use the local `claude-cli-channel` Codex MCP tools when they are installed. In a
 
 4. For requests that need a response in Codex, use `ask_claude`, passing `target` when needed.
 
-5. If a tool returns `multiple_claude_targets`, use its `candidates` list to ask the user to choose by visible project/name. Retry with the chosen candidate's `endpoint_id`; do not make the user type the endpoint id unless they prefer that.
+5. If a tool returns `multiple_claude_targets`, ask the user to choose from `candidates`, then retry with that candidate's `endpoint_id`.
 
 6. If MCP tools are unavailable, use the CLI fallback:
 
@@ -45,13 +45,17 @@ Use the local `claude-cli-channel` Codex MCP tools when they are installed. In a
 - Do not use this skill for normal web/API Claude access. It is only for a local live Claude Code session.
 - Use `tell_claude` or `tell` only when no response is needed. Use `ask_claude` or `ask` when Codex needs Claude Code's answer.
 - Prefer MCP tools over CLI commands when both are available.
-- When multiple live targets exist, fail closed and ask the user to choose from `candidates`; never guess based on branch names, task names, terminal titles, or transcript names.
+- When multiple live targets exist, ask the user to choose from `candidates`; never guess from branch names, task names, terminal titles, or transcript names.
 - Prefer endpoint ids for retries and scripts. Numeric list indexes are acceptable only for immediate human CLI fallback.
 - Prefer inline asks for short prompts and stdin/file input only for CLI fallback.
 - Use `ask-file <path>` or `tell-file <path>` only for user-owned or repo-owned prompt files, not hidden temporary files.
 - For review-sized asks, rely on the 30-minute default timeout unless the user asks for a different timeout.
 - Treat `tell` delivery as best-effort.
-- Keep Claude-facing prompts separate from Codex handling instructions. Send Claude only what Claude should answer; keep instructions like "then decide whether you agree" for Codex after the tool output returns.
+- Keep Claude-facing prompts separate from Codex handling instructions. Send Claude only what Claude should answer.
+- If the user says "verbatim", "exactly", "send this block", or gives a fenced/quoted prompt, send only that exact block as the Claude-facing prompt. Preserve wording, ordering, and whitespace.
+- For long or multiline exact prompts, pass the block directly as MCP `message`. In CLI fallback, stream only that block to `ask-file -` or `tell-file -`; never include Codex-only handling instructions in file/stdin payloads.
+- When content comes from another tool or plugin, summarize it only if the user asked for a summary. If the user asks to send it exactly, pass the selected text exactly.
 - After `ask_claude` or `ask` returns, use the `answer` field. Do not dump raw JSON unless debugging.
+- For very large CLI fallback reviews, redirect JSON to a visible file and parse `.answer` instead of relying on terminal output capture.
 - If `claude-channel status` fails, tell the user the channel is not running and ask them to start Claude Code with the `claude-cli-channel` channel enabled.
 - Keep messages explicit about their source, e.g. start with `From Codex:`.

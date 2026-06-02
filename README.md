@@ -13,7 +13,9 @@ The project keeps both native harnesses:
 
 This is an early preview for local development and research-preview Claude Code Channels.
 
-Claude Code Channels currently require a compatible Claude Code version and channel enablement. Custom channels are tested with Claude Code's development-channel flag. See the official [Claude Channels reference](https://code.claude.com/docs/en/channels-reference) for the current channel contract and requirements.
+Claude Code Channels require a compatible Claude Code version and channel enablement. Custom channels are tested with Claude Code's development-channel flag.
+
+See the official [Claude Channels reference](https://code.claude.com/docs/en/channels-reference) for the current contract and requirements.
 
 Working today:
 
@@ -37,7 +39,9 @@ Planned next:
 
 ## Mental Model
 
-Open Claude Code normally, but with the `claude-cli-channel` channel enabled. Each channel-enabled Claude Code window registers a local endpoint record under `~/.claude-channel/endpoints/`.
+Open Claude Code normally, but with the `claude-cli-channel` channel enabled.
+
+Each channel-enabled Claude Code window registers a local endpoint record under `~/.claude-channel/endpoints/`.
 
 If exactly one endpoint is live, `claude-channel` can target it automatically. If more than one endpoint is plausible, the command fails closed and asks for an explicit target.
 
@@ -63,7 +67,7 @@ claude-channel ask "From Codex: review this plan and reply with your recommendat
 
 `ask` waits for Claude Code to call `complete_channel_request` with the request id from the message.
 
-In Codex Desktop, the preferred interface is the bundled Codex plugin. `@claude-cli-channel` loads the skill guidance, and Codex can call the plugin MCP tools directly instead of synthesizing shell commands.
+In Codex Desktop, the preferred interface is the bundled Codex plugin. `@claude-cli-channel` loads the skill guidance, and Codex can call MCP tools directly instead of synthesizing shell commands.
 
 ## Install From Source
 
@@ -95,7 +99,9 @@ The Codex MCP server exposes:
 - `tell_claude`
 - `ask_claude`
 
-The checked-in `.mcp.json` belongs to Codex plugin packaging. For Claude Code bare-MCP channel development, use `.mcp.example.json` in the separate Claude Code receiver project you are testing. If you intentionally use this checkout itself as the Claude receiver project, temporarily swap the local `.mcp.json` and do not commit that machine-local change.
+The checked-in `.mcp.json` belongs to Codex plugin packaging. For Claude Code bare-MCP channel development, pass `.mcp.example.json` with `--mcp-config` when starting the receiver session.
+
+Copying `.mcp.example.json` into a receiver project as `.mcp.json` is still a fallback for projects that want persistent local MCP config, but it is not required for the smoke test.
 
 ## Configure Claude Code
 
@@ -120,7 +126,18 @@ This checks plugin loading. It is not the full end-to-end channel smoke test.
 
 ### 2. Run The Current Local Channel Smoke Test
 
-Until this project has a marketplace or npm release target, use the bare-MCP development fallback for end-to-end channel testing. Copy `.mcp.example.json` to the Claude Code project you want to run as the Claude receiver, naming it `.mcp.json` there. Claude Code supports environment-variable expansion in `.mcp.json`; use that for machine-specific paths:
+Until this project has a marketplace or npm release target, use the bare-MCP development fallback for end-to-end channel testing.
+
+Set `CLAUDE_CLI_CHANNEL_DIR` to this checkout, then start Claude Code from the project you want to use as the receiver:
+
+```sh
+export CLAUDE_CLI_CHANNEL_DIR="/path/to/claude-cli-channel"
+claude \
+  --mcp-config "$CLAUDE_CLI_CHANNEL_DIR/.mcp.example.json" \
+  --dangerously-load-development-channels server:claude-cli-channel
+```
+
+`.mcp.example.json` uses environment-variable expansion so the config stays portable:
 
 ```json
 {
@@ -133,14 +150,9 @@ Until this project has a marketplace or npm release target, use the bare-MCP dev
 }
 ```
 
-Then set the path before starting Claude Code:
+If a receiver project should load the channel persistently, copy that JSON into the receiver project as `.mcp.json` instead. Do not overwrite this repository's checked-in `.mcp.json`; it is for Codex plugin packaging.
 
-```sh
-export CLAUDE_CLI_CHANNEL_DIR="$PWD"
-claude --dangerously-load-development-channels server:claude-cli-channel
-```
-
-In another shell, use the sender CLI:
+In another shell, use the sender CLI. If `claude-channel` is not linked yet, run `npm link` once from this checkout.
 
 ```sh
 claude-channel list
@@ -160,11 +172,15 @@ claude --channels plugin:claude-cli-channel@<marketplace>
 
 TODO: Add `.claude-plugin/marketplace.json` after the repo URL, package source, marketplace name, and release/version policy are finalized.
 
-During the research preview, custom channel plugins that are not on an allowlist still need Claude Code's development-channel bypass for local testing. See the official [Claude Channels reference](https://code.claude.com/docs/en/channels-reference) for the current channel contract and startup rules.
+During the research preview, custom channel plugins that are not on an allowlist still need Claude Code's development-channel bypass for local testing.
+
+See the official [Claude Channels reference](https://code.claude.com/docs/en/channels-reference) for the current startup rules.
 
 For more on Claude Code MCP configuration, see the official [Claude MCP docs](https://docs.anthropic.com/en/docs/claude-code/mcp).
 
-The channel server binds to `127.0.0.1` and asks the operating system for an available local port by default. Override the port only for focused development or debugging:
+The channel server binds to `127.0.0.1` and asks the operating system for an available local port by default.
+
+Override the port only for focused development or debugging:
 
 ```sh
 CLAUDE_CHANNEL_PORT=8790 claude --dangerously-load-development-channels server:claude-cli-channel
@@ -172,7 +188,9 @@ CLAUDE_CHANNEL_PORT=8790 claude --dangerously-load-development-channels server:c
 
 Fixed ports are not recommended when multiple Claude Code windows may run at the same time.
 
-`CLAUDE_CHANNEL_HOST` is also available for advanced local testing, but binding to anything other than `127.0.0.1` can expose a prompt-injection surface to other machines. Do not use a remote listener unless you have designed and reviewed an explicit access-control model.
+`CLAUDE_CHANNEL_HOST` is also available for advanced local testing. Binding to anything other than `127.0.0.1` can expose a prompt-injection surface to other machines.
+
+Do not use a remote listener without an explicit access-control model.
 
 ## Use It Today
 
@@ -182,7 +200,27 @@ From Codex Desktop, use the plugin tools through `@claude-cli-channel`:
 @claude-cli-channel ask Claude Code to review the current branch for correctness and test coverage. After it responds, decide which findings you agree with.
 ```
 
-Codex should check `list_claude_targets` or `status_claude_channel`, choose an explicit target when more than one Claude Code window is live, then use `ask_claude` or `tell_claude` as appropriate. The CLI remains the human shell and fallback interface.
+Codex should check `list_claude_targets` or `status_claude_channel`, choose an explicit target when more than one Claude Code window is live, then use `ask_claude` or `tell_claude`.
+
+The CLI remains the human shell and fallback interface.
+
+### Codex UI Prompt Handling
+
+Codex should keep the Claude-facing prompt separate from Codex handling instructions. For example:
+
+````text
+@claude-cli-channel ask Claude verbatim:
+```text
+Please review Codex's last response adversarially.
+Focus on correctness, hidden assumptions, and overclaiming.
+```
+
+Then evaluate Claude's critique yourself and tell me what you agree with.
+````
+
+Codex sends only the fenced block as `ask_claude.message`. The final sentence is Codex's local handling instruction after Claude returns.
+
+The same rule applies to long prompts and file/stdin fallback. Stream only the Claude-facing prompt into `ask-file -` or `tell-file -`; keep Codex-only handling instructions out of that payload.
 
 List live Claude Code channel targets:
 
@@ -232,6 +270,13 @@ Ask with a reusable prompt file owned by the user/project:
 claude-channel ask-file prompts/review.md
 ```
 
+For very large CLI-fallback reviews, redirect the JSON response to a file and parse `answer` from it:
+
+```sh
+claude-channel ask-file - > claude-review.json
+jq -r .answer claude-review.json
+```
+
 Set a custom ask timeout:
 
 ```sh
@@ -252,7 +297,9 @@ claude-channel tell --to 2 "From Codex: the test run completed."
 CLAUDE_CHANNEL_TARGET=ep_ABC234 claude-channel status
 ```
 
-`--to` accepts an endpoint id, a unique display name, a project path, or a numeric index from the current `claude-channel list` output. Endpoint ids are the durable choice for scripts; numeric indexes are intended for interactive use.
+`--to` accepts an endpoint id, a unique display name, a project path, or a numeric index from the current `claude-channel list` output.
+
+Endpoint ids are the durable choice for scripts; numeric indexes are intended for interactive use.
 
 Compatibility aliases:
 
@@ -289,7 +336,9 @@ exactly one live endpoint
 error
 ```
 
-The channel does not infer targets from branches, task names, terminal titles, or Claude Code transcript names. The only implicit routing rule is a conservative workspace match: if the current working directory is inside exactly one live endpoint's registered project directory, that endpoint may be selected. If more than one endpoint is plausible, the command fails and prints the candidate list.
+The channel does not infer targets from branches, task names, terminal titles, or Claude Code transcript names.
+
+The only implicit routing rule is a conservative workspace match: if the current working directory is inside exactly one live endpoint's registered project directory, that endpoint may be selected. If more than one endpoint is plausible, the command fails and prints the candidate list.
 
 Future labels and persistent current-target config should remain user-owned aliases, not endpoint metadata.
 
@@ -322,13 +371,9 @@ The preview channel server writes live endpoint records to:
 ~/.claude-channel/endpoints/ep_<id>.json
 ```
 
-Each endpoint record is process-owned liveness metadata containing host, port, pid, project directory, display name, start time, and last-seen time. The sender prunes stale or dead endpoint records while listing or resolving targets.
+Each endpoint record is process-owned liveness metadata: host, port, pid, project directory, display name, start time, and last-seen time.
 
-For compatibility and debugging during the preview, the channel server also writes the most recent endpoint to:
-
-```text
-~/.claude-channel/state.json
-```
+The sender prunes stale or dead endpoint records while listing or resolving targets.
 
 ## Development
 
@@ -336,14 +381,16 @@ For compatibility and debugging during the preview, the channel server also writ
 npm run check:local
 ```
 
-`npm run check:local` includes TypeScript checks, tests, `npm audit`, Claude plugin validation, and package dry-run. CI intentionally stays Node-only because GitHub Actions runners do not have Claude Code or Codex plugin validation installed by default.
+`npm run check:local` includes TypeScript checks, tests, `npm audit`, Claude plugin validation, and package dry-run.
 
-Codex plugin workflow guidance lives in `skills/claude-cli-channel/SKILL.md`. Repo-local contributor fallback guidance lives in `.agents/skills/claude-cli-channel/SKILL.md`. See [Codex skills guidance](https://developers.openai.com/codex/explore) for the broader skills model.
+CI intentionally stays Node-only because GitHub Actions runners do not have Claude Code or Codex plugin validation installed by default.
+
+Codex plugin workflow guidance lives in `skills/claude-cli-channel/SKILL.md`. Repo-local contributor fallback guidance lives in `.agents/skills/claude-cli-channel/SKILL.md`.
+
+See [Codex skills guidance](https://developers.openai.com/codex/explore) for the broader skills model.
 
 ## Docs
 
 - [Architecture](docs/architecture.md)
 - [UX](docs/ux.md)
 - [Protocol](docs/protocol.md)
-- [Software pattern references](docs/software-patterns.md)
-- [Prior art research](docs/prior-art.md)

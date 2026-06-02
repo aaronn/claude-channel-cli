@@ -8,7 +8,9 @@ It is intentionally not a multi-agent mailbox, terminal scraper, transcript edit
 
 The addressable unit is a live, channel-enabled Claude Code session.
 
-`claude-cli-channel` can communicate with a Claude Code window only when that window has loaded the `claude-cli-channel` MCP/channel server. It does not discover arbitrary Claude Code terminals and does not inject into old transcript files.
+`claude-cli-channel` can communicate with a Claude Code window only when that window has loaded the `claude-cli-channel` MCP/channel server.
+
+It does not discover arbitrary Claude Code terminals and does not inject into old transcript files.
 
 ## Components
 
@@ -98,7 +100,9 @@ exactly one live endpoint
 error
 ```
 
-This matches mature CLI context patterns while avoiding hidden routing by branch, task, terminal title, or transcript name. The workspace match is intentionally conservative: it applies only when the caller's current working directory is inside exactly one live endpoint's registered project directory.
+This matches mature CLI context patterns while avoiding hidden routing by branch, task, terminal title, or transcript name.
+
+The workspace match is intentionally conservative: it applies only when the caller's current working directory is inside exactly one live endpoint's registered project directory.
 
 ## Module Boundaries
 

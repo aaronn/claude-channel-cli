@@ -34,7 +34,9 @@ claude-channel status
 
 `tell` is fire-and-forget. The user watches Claude Code handle the message in its normal terminal.
 
-`ask_claude` and CLI `ask` wait for Claude Code to explicitly complete the request. Claude should call `complete_channel_request` once it has the final answer. The CLI prints wait progress to stderr and leaves stdout for the final machine-readable response; the Codex MCP tool returns structured content directly.
+`ask_claude` and CLI `ask` wait for Claude Code to explicitly complete the request. Claude should call `complete_channel_request` once it has the final answer.
+
+The CLI prints wait progress to stderr and leaves stdout for the final machine-readable response. The Codex MCP tool returns structured content directly.
 
 `ask` defaults to 30 minutes because review-sized work can be slow. The timeout is still explicit and configurable with `--timeout`, `--timeout-ms`, or `CLAUDE_CHANNEL_ASK_TIMEOUT_MS`.
 
@@ -65,6 +67,45 @@ claude-channel ask-file prompts/review.md
 ```
 
 This avoids requiring pre-created prompt files for normal usage while keeping files available for stable review rubrics.
+
+For very large CLI-fallback reviews, redirect the JSON response to a visible file and parse the `answer` field:
+
+```sh
+printf '%s\n' "$prompt" | claude-channel ask-file - > claude-review.json
+jq -r .answer claude-review.json
+```
+
+Do this only for expected long output. Normal Codex MCP tool calls already return structured data, so Codex can read `answer` directly.
+
+## Verbatim Prompts
+
+When the user says "verbatim", "exactly", "send this block", or provides a fenced/quoted prompt, Codex should send only that exact block to Claude.
+
+Surrounding instructions remain local Codex handling instructions.
+
+````text
+User asks Codex:
+Ask Claude verbatim:
+```text
+Please review Codex's last response adversarially.
+```
+Then decide whether you agree with Claude's critique.
+````
+
+Codex sends only:
+
+```text
+Please review Codex's last response adversarially.
+```
+
+For long or multiline exact prompts, file/stdin modes are the preferred CLI fallback. The file or stdin content must be the Claude-facing prompt only:
+
+```sh
+printf '%s\n' "$verbatim_prompt" | claude-channel ask-file --to ep_ABC234 -
+printf '%s\n' "$verbatim_prompt" | claude-channel tell-file --to ep_ABC234 -
+```
+
+Do not put Codex handling instructions into prompt files or stdin payloads unless the user explicitly wants Claude to see those instructions.
 
 ## Codex Handling Flows
 
@@ -109,7 +150,9 @@ error
 
 Do not infer target from branch, task name, terminal title, or Claude Code transcript name.
 
-Codex should handle ambiguity by showing the candidate names/projects and asking the user which visible Claude Code window to use. Once the user chooses, Codex should retry with the chosen endpoint id. The user should not have to type the id unless they want to.
+Codex should handle ambiguity by showing the candidate names/projects and asking the user which visible Claude Code window to use.
+
+Once the user chooses, Codex should retry with the chosen endpoint id. The user should not have to type the id unless they want to.
 
 ## Multiple Windows
 
@@ -129,7 +172,7 @@ claude-channel use channel
 claude-channel ask --to main "..."
 ```
 
-Labels and persistent current-target config are intentionally deferred until the endpoint registry proves useful in real local workflows. This keeps today's behavior safe without making users memorize endpoint ids for every command.
+Labels and persistent current-target config are intentionally deferred until the endpoint registry proves useful in real local workflows.
 
 ## Non-Goals
 

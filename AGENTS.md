@@ -9,16 +9,18 @@ npm install
 npm run build
 ```
 
-For local Claude Code testing, copy `.mcp.example.json` into the Claude Code receiver project as `.mcp.json`, configure `CLAUDE_CLI_CHANNEL_DIR` with this checkout, then start Claude Code with:
+For local Claude Code testing, configure `CLAUDE_CLI_CHANNEL_DIR` with this checkout, then start Claude Code from the receiver project with `.mcp.example.json` passed explicitly:
 
 ```sh
-export CLAUDE_CLI_CHANNEL_DIR="$PWD"
-claude --dangerously-load-development-channels server:claude-cli-channel
+export CLAUDE_CLI_CHANNEL_DIR="/path/to/claude-cli-channel"
+claude \
+  --mcp-config "$CLAUDE_CLI_CHANNEL_DIR/.mcp.example.json" \
+  --dangerously-load-development-channels server:claude-cli-channel
 ```
 
 The `.claude-plugin/plugin.json` manifest is the canonical Claude plugin packaging file. The `.codex-plugin/plugin.json` manifest is the Codex plugin packaging file. Use `claude --plugin-dir .` for Claude plugin load checks, but use the bare-MCP development fallback above for the current end-to-end channel smoke test until a marketplace target exists.
 
-The checked-in `.mcp.json` is for Codex plugin packaging. Do not commit a temporary Claude receiver `.mcp.json` over it.
+The checked-in `.mcp.json` is for Codex plugin packaging. Copy `.mcp.example.json` into a receiver project as `.mcp.json` only when persistent local MCP config is explicitly wanted, and do not commit a temporary Claude receiver `.mcp.json` over this repository's checked-in file.
 
 ## Quality Bar
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { readChannelRuntimeConfig } from "./config/env.js";
-import { readOrCreateToken, writeLegacyState } from "./config/paths.js";
+import { readOrCreateToken } from "./config/paths.js";
 import { errorMessage } from "./errors.js";
 import { createBridgeHttpServer } from "./http/bridge-server.js";
 import { createClaudeChannel } from "./mcp/claude-channel.js";
@@ -43,14 +43,6 @@ async function registerEndpoint(port: number): Promise<void> {
     port,
     pid: process.pid,
     projectDir,
-  });
-
-  await writeLegacyState({
-    schema_version: 1,
-    host: config.host,
-    port,
-    pid: process.pid,
-    started_at: new Date().toISOString(),
   });
 
   refreshTimer = setInterval(async () => {
