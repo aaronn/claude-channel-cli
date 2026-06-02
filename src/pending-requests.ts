@@ -1,3 +1,4 @@
+import { RequestTimeoutError } from "./errors.js";
 import type { AskCompletion } from "./protocol.js";
 
 type PendingRequest = {
@@ -17,7 +18,7 @@ export class PendingRequests {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.requests.delete(requestId);
-        reject(new Error(`timed out waiting for Claude Code reply to ${requestId}`));
+        reject(new RequestTimeoutError(`timed out waiting for Claude Code reply to ${requestId}`));
       }, timeoutMs);
 
       this.requests.set(requestId, { resolve, reject, timeout });

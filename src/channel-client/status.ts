@@ -1,5 +1,6 @@
 import { formatChannelUrl } from "./client.js";
 import { tokenPath as defaultTokenPath } from "../config/paths.js";
+import { errorMessage } from "../errors.js";
 import type { EndpointCandidate, EndpointRecord } from "../registry/endpoint-record.js";
 import { endpointsDir as defaultEndpointsDir } from "../registry/endpoint-store.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
@@ -92,8 +93,4 @@ function parseHealthJson(text: string): { valid: boolean; value: unknown } {
 
 function isHealthyResponse(value: unknown): boolean {
   return typeof value === "object" && value !== null && "ok" in value && value.ok === true;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

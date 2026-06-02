@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 
 const META_KEY_RE = /^[A-Za-z0-9_]+$/;
+const MAX_META_VALUE_LENGTH = 200;
+const UNSAFE_META_VALUE_RE = /[\u0000-\u001F\u007F<>"'`]/;
 const REQUEST_ID_RE = /^req_[A-Za-z0-9]+$/;
+export const DEFAULT_CHANNEL_SENDER = "codex";
 
 export type ChannelEventMeta = Record<string, string>;
 
@@ -31,15 +34,31 @@ export function isRequestId(value: string): boolean {
 export function sanitizeMeta(meta: ChannelEventMeta): ChannelEventMeta {
   const out: ChannelEventMeta = {};
   for (const [key, value] of Object.entries(meta)) {
-    if (META_KEY_RE.test(key)) out[key] = value;
+    if (META_KEY_RE.test(key) && isSafeMetaValue(value)) out[key] = value;
   }
   return out;
 }
 
+export function isSafeMetaValue(value: string): boolean {
+  return value.length > 0 &&
+    value.length <= MAX_META_VALUE_LENGTH &&
+    !UNSAFE_META_VALUE_RE.test(value);
+}
+
+export function normalizeChannelSender(value: unknown): string {
+  if (typeof value !== "string") return DEFAULT_CHANNEL_SENDER;
+
+  const trimmed = value.trim();
+  return isSafeMetaValue(trimmed) ? trimmed : DEFAULT_CHANNEL_SENDER;
+}
+
 export function buildChannelMeta(meta: ChannelEventMeta): ChannelEventMeta {
-  return sanitizeMeta({
-    sender: "codex",
+  const sanitized = sanitizeMeta({
+    sender: DEFAULT_CHANNEL_SENDER,
     received_at: new Date().toISOString(),
     ...meta,
   });
+
+  if (!sanitized.sender) sanitized.sender = DEFAULT_CHANNEL_SENDER;
+  return sanitized;
 }

@@ -29,7 +29,10 @@ type ListOptions = {
 
 async function list(options: ListOptions): Promise<void> {
   const candidates = toEndpointCandidates(await listLiveEndpoints());
-  process.stdout.write(options.json ? `${JSON.stringify({ targets: candidates }, null, 2)}\n` : formatEndpointList(candidates));
+  const output = options.json
+    ? `${JSON.stringify({ targets: candidates }, null, 2)}\n`
+    : formatEndpointList(candidates);
+  process.stdout.write(output);
 }
 
 async function status(options: SendOptions): Promise<void> {

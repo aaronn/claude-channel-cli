@@ -1,7 +1,8 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { PendingRequests } from "../pending-requests.js";
 import { buildChannelMeta, isRequestId, type AskStatus, type ChannelEventMeta } from "../protocol.js";
+import { readRecordObject, readRequiredString } from "../validation.js";
 
 export type ClaudeChannel = {
   server: Server;
@@ -56,27 +57,8 @@ export function createClaudeChannel(pendingRequests: PendingRequests): ClaudeCha
     ],
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (req) => {
-    if (req.params.name !== COMPLETE_TOOL_NAME) {
-      throw new Error(`unknown tool: ${req.params.name}`);
-    }
-
-    const args = parseCompletionArgs(req.params.arguments);
-    const completed = pendingRequests.complete({
-      requestId: args.request_id,
-      status: args.status,
-      answer: args.answer,
-    });
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: completed ? "Codex request completed." : "No pending Codex request matched that request_id.",
-        },
-      ],
-    };
-  });
+  server.setRequestHandler(CallToolRequestSchema, async (req) =>
+    callClaudeChannelTool(req.params.name, req.params.arguments, pendingRequests));
 
   return {
     server,
@@ -89,6 +71,32 @@ export function createClaudeChannel(pendingRequests: PendingRequests): ClaudeCha
       request_id: requestId,
       reply_required: "true",
     }),
+  };
+}
+
+export function callClaudeChannelTool(
+  name: string,
+  args: unknown,
+  pendingRequests: PendingRequests,
+): CallToolResult {
+  if (name !== COMPLETE_TOOL_NAME) {
+    throw new Error(`unknown tool: ${name}`);
+  }
+
+  const completion = parseCompletionArgs(args);
+  const completed = pendingRequests.complete({
+    requestId: completion.request_id,
+    status: completion.status,
+    answer: completion.answer,
+  });
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: completed ? "Codex request completed." : "No pending Codex request matched that request_id.",
+      },
+    ],
   };
 }
 
@@ -107,14 +115,10 @@ async function emitChannelEvent(
 }
 
 function parseCompletionArgs(args: unknown): { request_id: string; status: AskStatus; answer: string } {
-  if (typeof args !== "object" || args === null) {
-    throw new Error("completion arguments must be an object");
-  }
-
-  const record = args as Record<string, unknown>;
-  const requestId = readString(record, "request_id");
-  const status = readString(record, "status") as AskStatus;
-  const answer = readString(record, "answer");
+  const record = readRecordObject(args, "completion arguments must be an object");
+  const requestId = readRequiredString(record, "request_id", { trim: true });
+  const status = readRequiredString(record, "status", { trim: true }) as AskStatus;
+  const answer = readRequiredString(record, "answer");
 
   if (!["answered", "needs_user", "declined", "failed"].includes(status)) {
     throw new Error(`invalid completion status: ${status}`);
@@ -129,12 +133,4 @@ function parseCompletionArgs(args: unknown): { request_id: string; status: AskSt
     status,
     answer,
   };
-}
-
-function readString(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`${key} must be a non-empty string`);
-  }
-  return value.trim();
 }

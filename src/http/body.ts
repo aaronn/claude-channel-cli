@@ -1,4 +1,5 @@
 import type http from "node:http";
+import { HttpError } from "../errors.js";
 
 export async function readBody(req: http.IncomingMessage, maxBodyBytes: number): Promise<string> {
   const chunks: Buffer[] = [];
@@ -9,7 +10,7 @@ export async function readBody(req: http.IncomingMessage, maxBodyBytes: number):
     bytes += buffer.byteLength;
 
     if (bytes > maxBodyBytes) {
-      throw new Error(`request body exceeds ${maxBodyBytes} bytes`);
+      throw new HttpError(413, `request body exceeds ${maxBodyBytes} bytes`);
     }
 
     chunks.push(buffer);
@@ -28,7 +29,7 @@ export function messageFromBody(req: http.IncomingMessage, body: string): string
   try {
     parsed = JSON.parse(body) as unknown;
   } catch {
-    throw new Error("invalid JSON request body");
+    throw new HttpError(400, "invalid JSON request body");
   }
 
   if (
@@ -40,5 +41,5 @@ export function messageFromBody(req: http.IncomingMessage, body: string): string
     return parsed.message;
   }
 
-  throw new Error('JSON requests must include a string "message" field');
+  throw new HttpError(400, 'JSON requests must include a string "message" field');
 }

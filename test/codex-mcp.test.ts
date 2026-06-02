@@ -15,22 +15,24 @@ const endpoint = {
   last_seen_at: "2026-06-01T00:00:01.000Z",
 };
 
+const candidate = {
+  index: 1,
+  target: endpoint.endpoint_id,
+  endpoint_id: endpoint.endpoint_id,
+  display_name: endpoint.display_name,
+  project_dir: endpoint.project_dir,
+  host: endpoint.host,
+  port: endpoint.port,
+  pid: endpoint.pid,
+  started_at: endpoint.started_at,
+  last_seen_at: endpoint.last_seen_at,
+  last_seen_seconds: 1,
+};
+
 function deps(): CodexChannelToolDeps {
   return {
     list: async () => ({
-      targets: [{
-        index: 1,
-        target: endpoint.endpoint_id,
-        endpoint_id: endpoint.endpoint_id,
-        display_name: endpoint.display_name,
-        project_dir: endpoint.project_dir,
-        host: endpoint.host,
-        port: endpoint.port,
-        pid: endpoint.pid,
-        started_at: endpoint.started_at,
-        last_seen_at: endpoint.last_seen_at,
-        last_seen_seconds: 1,
-      }],
+      targets: [candidate],
     }),
     status: async () => ({
       ok: true,
@@ -66,23 +68,11 @@ test("list_claude_targets returns structured targets", async () => {
   const result = await callCodexChannelTool("list_claude_targets", {}, deps());
 
   assert.equal(result.isError, false);
-  assert.deepEqual(result.structuredContent?.targets, [{
-    index: 1,
-    target: endpoint.endpoint_id,
-    endpoint_id: endpoint.endpoint_id,
-    display_name: endpoint.display_name,
-    project_dir: endpoint.project_dir,
-    host: endpoint.host,
-    port: endpoint.port,
-    pid: endpoint.pid,
-    started_at: endpoint.started_at,
-    last_seen_at: endpoint.last_seen_at,
-    last_seen_seconds: 1,
-  }]);
+  assert.deepEqual(result.structuredContent?.targets, [candidate]);
 });
 
 test("status_claude_channel returns structured status", async () => {
-  const result = await callCodexChannelTool("status_claude_channel", {}, deps());
+  const result = await callCodexChannelTool("status_claude_channel", undefined, deps());
 
   assert.equal(result.isError, false);
   assert.deepEqual(result.structuredContent?.health, { ok: true });
@@ -205,19 +195,7 @@ test("tool argument validation returns tool-visible errors", async () => {
 test("target ambiguity returns retry-friendly structured error", async () => {
   const testDeps = deps();
   testDeps.ask = async () => {
-    throw new TargetResolutionError("multiple_claude_targets", "Multiple targets", [{
-      index: 1,
-      target: endpoint.endpoint_id,
-      endpoint_id: endpoint.endpoint_id,
-      display_name: endpoint.display_name,
-      project_dir: endpoint.project_dir,
-      host: endpoint.host,
-      port: endpoint.port,
-      pid: endpoint.pid,
-      started_at: endpoint.started_at,
-      last_seen_at: endpoint.last_seen_at,
-      last_seen_seconds: 1,
-    }]);
+    throw new TargetResolutionError("multiple_claude_targets", "Multiple targets", [candidate]);
   };
 
   const result = await callCodexChannelTool("ask_claude", {
@@ -226,17 +204,5 @@ test("target ambiguity returns retry-friendly structured error", async () => {
 
   assert.equal(result.isError, true);
   assert.equal(result.structuredContent?.error, "multiple_claude_targets");
-  assert.deepEqual(result.structuredContent?.candidates, [{
-    index: 1,
-    target: endpoint.endpoint_id,
-    endpoint_id: endpoint.endpoint_id,
-    display_name: endpoint.display_name,
-    project_dir: endpoint.project_dir,
-    host: endpoint.host,
-    port: endpoint.port,
-    pid: endpoint.pid,
-    started_at: endpoint.started_at,
-    last_seen_at: endpoint.last_seen_at,
-    last_seen_seconds: 1,
-  }]);
+  assert.deepEqual(result.structuredContent?.candidates, [candidate]);
 });

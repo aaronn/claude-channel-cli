@@ -2,7 +2,13 @@ import { chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises
 import path from "node:path";
 import { bridgeDir, ensureBridgeDir } from "../config/paths.js";
 import { createEndpointId } from "./endpoint-id.js";
-import { createEndpointRecord, type EndpointRecord, parseEndpointRecord, refreshEndpointRecord, sortEndpointRecords } from "./endpoint-record.js";
+import {
+  createEndpointRecord,
+  type EndpointRecord,
+  parseEndpointRecord,
+  refreshEndpointRecord,
+  sortEndpointRecords,
+} from "./endpoint-record.js";
 import { isEndpointLive } from "./liveness.js";
 
 export const endpointsDir = path.join(bridgeDir, "endpoints");
@@ -68,7 +74,10 @@ export async function writeEndpointRecord(record: EndpointRecord, options: Endpo
   await chmod(file, 0o600);
 }
 
-export async function refreshEndpoint(record: EndpointRecord, options: EndpointStoreOptions = {}): Promise<EndpointRecord> {
+export async function refreshEndpoint(
+  record: EndpointRecord,
+  options: EndpointStoreOptions = {},
+): Promise<EndpointRecord> {
   const refreshed = refreshEndpointRecord(record, options.now ?? new Date());
   await writeEndpointRecord(refreshed, options);
   return refreshed;

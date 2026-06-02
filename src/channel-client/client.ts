@@ -43,15 +43,6 @@ export async function askClaude(
   return { ...body, target: endpoint.endpoint_id };
 }
 
-export async function requestChannel(
-  path: string,
-  init: RequestInit,
-  options: TargetResolutionOptions & { fetchFn?: typeof fetch } = {},
-): Promise<Response> {
-  const { endpoint } = await resolveClaudeTarget(options);
-  return (options.fetchFn ?? fetch)(formatChannelUrl(endpoint, path), init);
-}
-
 export async function postChannelMessage(
   path: "/tell" | "/ask",
   message: string,

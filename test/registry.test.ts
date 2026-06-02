@@ -5,7 +5,13 @@ import path from "node:path";
 import test from "node:test";
 import { createEndpointId, isEndpointId } from "../src/registry/endpoint-id.js";
 import { createEndpointRecord, parseEndpointRecord, toEndpointCandidates } from "../src/registry/endpoint-record.js";
-import { createUniqueEndpointRecord, listLiveEndpoints, readEndpointRecords, removeEndpointRecord, writeEndpointRecord } from "../src/registry/endpoint-store.js";
+import {
+  createUniqueEndpointRecord,
+  listLiveEndpoints,
+  readEndpointRecords,
+  removeEndpointRecord,
+  writeEndpointRecord,
+} from "../src/registry/endpoint-store.js";
 
 test("createEndpointId returns a short local endpoint id", () => {
   assert.match(createEndpointId(), /^ep_[A-Z2-9]{6}$/);

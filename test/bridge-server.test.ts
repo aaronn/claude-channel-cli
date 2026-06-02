@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import { createBridgeHttpServer } from "../src/http/bridge-server.js";
 import type { ClaudeChannel } from "../src/mcp/claude-channel.js";
 import { PendingRequests } from "../src/pending-requests.js";
+import type { ChannelEventMeta } from "../src/protocol.js";
 
 type StartedServer = {
   baseUrl: string;
@@ -57,12 +58,19 @@ async function startServer(
   };
 }
 
-async function post(baseUrl: string, path: string, body = "hello", token = "secret"): Promise<Response> {
+async function post(
+  baseUrl: string,
+  path: string,
+  body = "hello",
+  token = "secret",
+  headers: Record<string, string> = {},
+): Promise<Response> {
   return fetch(`${baseUrl}${path}`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${token}`,
       "content-type": "text/plain; charset=utf-8",
+      ...headers,
     },
     body,
   });
@@ -133,6 +141,34 @@ test("POST /tell preserves prompt whitespace", async () => {
 
     assert.equal(response.status, 202);
     assert.deepEqual(tells, [prompt]);
+  } finally {
+    await server.close();
+  }
+});
+
+test("POST /tell validates sender metadata at ingress", async () => {
+  const senders: Array<string | undefined> = [];
+  const server = await startServer({
+    channel: {
+      server: {} as ClaudeChannel["server"],
+      emitTell: async (_content, meta?: ChannelEventMeta) => {
+        senders.push(meta?.sender);
+      },
+      emitAsk: async () => {},
+    },
+  });
+
+  try {
+    const valid = await post(server.baseUrl, "/tell", "hello", "secret", {
+      "x-claude-channel-sender": "codex-review",
+    });
+    const invalid = await post(server.baseUrl, "/tell", "hello", "secret", {
+      "x-claude-channel-sender": 'bad"sender',
+    });
+
+    assert.equal(valid.status, 202);
+    assert.equal(invalid.status, 202);
+    assert.deepEqual(senders, ["codex-review", "codex"]);
   } finally {
     await server.close();
   }

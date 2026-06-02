@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { readChannelRuntimeConfig } from "./config/env.js";
-import { readOrCreateToken, writeState } from "./config/paths.js";
+import { readOrCreateToken, writeLegacyState } from "./config/paths.js";
+import { errorMessage } from "./errors.js";
 import { createBridgeHttpServer } from "./http/bridge-server.js";
 import { createClaudeChannel } from "./mcp/claude-channel.js";
 import { PendingRequests } from "./pending-requests.js";
@@ -44,7 +45,7 @@ async function registerEndpoint(port: number): Promise<void> {
     projectDir,
   });
 
-  await writeState({
+  await writeLegacyState({
     schema_version: 1,
     host: config.host,
     port,
@@ -84,7 +85,3 @@ process.on("SIGINT", () => {
 process.on("SIGTERM", () => {
   void shutdown().finally(() => process.exit(0));
 });
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}

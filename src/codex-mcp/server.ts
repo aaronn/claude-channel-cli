@@ -4,8 +4,15 @@ import { askClaude, tellClaude, type TargetedAskResponse, type TellResponse } fr
 import { readChannelStatus, type ChannelStatusResult } from "../channel-client/status.js";
 import { TargetResolutionError } from "../channel-client/target-resolver.js";
 import { DEFAULT_ASK_TIMEOUT_MS } from "../config/defaults.js";
+import { errorMessage } from "../errors.js";
 import { toEndpointCandidates, type EndpointCandidate } from "../registry/endpoint-record.js";
 import { listLiveEndpoints } from "../registry/endpoint-store.js";
+import {
+  readOptionalPositiveInteger,
+  readOptionalString,
+  readRecordObject,
+  readRequiredString,
+} from "../validation.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -135,7 +142,7 @@ function messageInputSchema(includeTimeout: boolean): JsonObject {
     target: targetSchema(),
     message: {
       type: "string",
-      description: "Claude-facing message to send into the live Claude Code session.",
+      description: "Exact Claude-facing message after Codex has removed any local handling instructions.",
     },
     sender: {
       type: "string",
@@ -166,14 +173,14 @@ function targetSchema(): JsonObject {
 }
 
 function parseTargetArgs(args: unknown): { target?: string } {
-  const record = readArgsObject(args);
+  const record = readArgsObject(args, true);
   return {
     target: readOptionalString(record, "target"),
   };
 }
 
 function parseMessageArgs(args: unknown): { target?: string; message: string; sender?: string } {
-  const record = readArgsObject(args);
+  const record = readArgsObject(args, false);
   return {
     target: readOptionalString(record, "target"),
     message: readRequiredString(record, "message"),
@@ -182,7 +189,7 @@ function parseMessageArgs(args: unknown): { target?: string; message: string; se
 }
 
 function parseAskArgs(args: unknown): { target?: string; message: string; sender?: string; timeoutMs: number } {
-  const record = readArgsObject(args);
+  const record = readArgsObject(args, false);
   return {
     target: readOptionalString(record, "target"),
     message: readRequiredString(record, "message"),
@@ -191,41 +198,9 @@ function parseAskArgs(args: unknown): { target?: string; message: string; sender
   };
 }
 
-function readArgsObject(args: unknown): Record<string, unknown> {
-  if (typeof args !== "object" || args === null || Array.isArray(args)) {
-    throw new Error("tool arguments must be an object");
-  }
-  return args as Record<string, unknown>;
-}
-
-function readRequiredString(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`${key} must be a non-empty string`);
-  }
-  return value;
-}
-
-function readOptionalString(record: Record<string, unknown>, key: string): string | undefined {
-  const value = record[key];
-  if (value === undefined) return undefined;
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`${key} must be a non-empty string when provided`);
-  }
-  return value;
-}
-
-function readOptionalPositiveInteger(
-  record: Record<string, unknown>,
-  key: string,
-  fallback: number,
-): number {
-  const value = record[key];
-  if (value === undefined) return fallback;
-  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
-    throw new Error(`${key} must be a positive integer when provided`);
-  }
-  return value;
+function readArgsObject(args: unknown, optional: boolean): Record<string, unknown> {
+  if (args === undefined && optional) return {};
+  return readRecordObject(args, "tool arguments must be an object");
 }
 
 function result(data: JsonObject, isError = false): CallToolResult {
@@ -252,8 +227,4 @@ function errorPayload(error: unknown): JsonObject {
   }
 
   return { ok: false, error: errorMessage(error) };
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

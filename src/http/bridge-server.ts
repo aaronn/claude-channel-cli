@@ -1,8 +1,10 @@
 import http from "node:http";
+import { errorMessage, HttpError, RequestTimeoutError } from "../errors.js";
 import type { ClaudeChannel } from "../mcp/claude-channel.js";
 import { PendingRequests } from "../pending-requests.js";
-import { createRequestId } from "../protocol.js";
+import { createRequestId, normalizeChannelSender } from "../protocol.js";
 import { isAuthorized } from "../security/auth.js";
+import { parsePositiveIntegerString } from "../validation.js";
 import { messageFromBody, readBody } from "./body.js";
 import { sendJson, sendText } from "./responses.js";
 
@@ -37,8 +39,10 @@ export function createBridgeHttpServer(options: BridgeHttpServerOptions): http.S
 
       sendText(res, 404, "not found\n");
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      sendJson(res, statusForError(message), { ok: false, error: message });
+      const status = statusForError(error);
+      const message = status === 500 ? "internal server error" : errorMessage(error);
+      if (status === 500) console.error(`claude-cli-channel unexpected HTTP error: ${errorMessage(error)}`);
+      sendJson(res, status, { ok: false, error: message });
     }
   });
 }
@@ -55,7 +59,7 @@ async function handleTell(
 
   const content = await readMessage(req, options.maxBodyBytes);
   await options.channel.emitTell(content, {
-    sender: req.headers["x-claude-channel-sender"]?.toString() ?? "codex",
+    sender: normalizeChannelSender(req.headers["x-claude-channel-sender"]),
   });
 
   sendJson(res, 202, { ok: true });
@@ -79,7 +83,7 @@ async function handleAsk(
 
   try {
     await options.channel.emitAsk(requestId, content, {
-      sender: req.headers["x-claude-channel-sender"]?.toString() ?? "codex",
+      sender: normalizeChannelSender(req.headers["x-claude-channel-sender"]),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -100,31 +104,22 @@ async function readMessage(req: http.IncomingMessage, maxBodyBytes: number): Pro
   const body = await readBody(req, maxBodyBytes);
   const content = messageFromBody(req, body);
   if (content.trim().length === 0) {
-    throw new Error("message body is required");
+    throw new HttpError(400, "message body is required");
   }
   return content;
 }
 
 function parseTimeout(value: string | null, fallback: number): number {
   if (!value) return fallback;
-  if (!/^\d+$/.test(value)) {
-    throw new Error("timeout_ms must be a positive integer");
+  try {
+    return parsePositiveIntegerString(value, "timeout_ms");
+  } catch {
+    throw new HttpError(400, "timeout_ms must be a positive integer");
   }
-
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error("timeout_ms must be a positive integer");
-  }
-
-  return parsed;
 }
 
-function statusForError(message: string): number {
-  if (message.startsWith("timed out waiting for Claude Code reply")) return 504;
-  if (message === "message body is required") return 400;
-  if (message === "invalid JSON request body") return 400;
-  if (message === 'JSON requests must include a string "message" field') return 400;
-  if (message === "timeout_ms must be a positive integer") return 400;
-  if (message.includes("exceeds")) return 413;
+function statusForError(error: unknown): number {
+  if (error instanceof HttpError) return error.status;
+  if (error instanceof RequestTimeoutError) return 504;
   return 500;
 }

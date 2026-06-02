@@ -1,5 +1,10 @@
 import path from "node:path";
-import { type EndpointCandidate, type EndpointRecord, sortEndpointRecords, toEndpointCandidates } from "../registry/endpoint-record.js";
+import {
+  type EndpointCandidate,
+  type EndpointRecord,
+  sortEndpointRecords,
+  toEndpointCandidates,
+} from "../registry/endpoint-record.js";
 import { listLiveEndpoints } from "../registry/endpoint-store.js";
 
 export type TargetResolutionOptions = {
@@ -73,7 +78,11 @@ export async function resolveClaudeTarget(options: TargetResolutionOptions = {})
   );
 }
 
-function resolveNamedTarget(target: string, endpoints: EndpointRecord[], candidates: EndpointCandidate[]): EndpointRecord {
+function resolveNamedTarget(
+  target: string,
+  endpoints: EndpointRecord[],
+  candidates: EndpointCandidate[],
+): EndpointRecord {
   const byIndex = /^\d+$/.test(target) ? endpoints[Number.parseInt(target, 10) - 1] : undefined;
   if (byIndex) return byIndex;
 
