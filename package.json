@@ -6,9 +6,6 @@
   "type": "module",
   "files": [
     "dist",
-    "docs/architecture.md",
-    "docs/protocol.md",
-    "docs/ux.md",
     ".claude-plugin",
     ".codex-plugin",
     ".mcp.json",
