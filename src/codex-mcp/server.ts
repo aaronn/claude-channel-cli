@@ -15,6 +15,7 @@ import {
 } from "../validation.js";
 
 type JsonObject = Record<string, unknown>;
+type StructuredToolPayload = object;
 
 export type CodexChannelToolDeps = {
   list: () => Promise<{ targets: EndpointCandidate[] }>;
@@ -87,12 +88,12 @@ export function listCodexChannelTools(): Array<{
     {
       name: TELL_TOOL,
       description: "Send a one-way message into the live Claude Code session.",
-      inputSchema: messageInputSchema(false),
+      inputSchema: messageInputSchema({ includeTimeout: false }),
     },
     {
       name: ASK_TOOL,
       description: "Send a request to Claude Code and wait for complete_channel_request.",
-      inputSchema: messageInputSchema(true),
+      inputSchema: messageInputSchema({ includeTimeout: true }),
     },
   ];
 }
@@ -108,36 +109,36 @@ export async function callCodexChannelTool(
 
   try {
     if (name === LIST_TOOL) {
-      return result(await deps.list() as unknown as JsonObject);
+      return toolResult(await deps.list());
     }
 
     if (name === STATUS_TOOL) {
       const input = parseTargetArgs(args);
       const status = await deps.status({ target: input.target });
-      return result(status.report as unknown as JsonObject, !status.ok);
+      return toolResult(status.report, !status.ok);
     }
 
     if (name === TELL_TOOL) {
       const input = parseMessageArgs(args);
-      return result(await deps.tell(input.message, { target: input.target, sender: input.sender }) as unknown as JsonObject);
+      return toolResult(await deps.tell(input.message, { target: input.target, sender: input.sender }));
     }
 
     if (name === ASK_TOOL) {
       const input = parseAskArgs(args);
-      return result(await deps.ask(input.message, {
+      return toolResult(await deps.ask(input.message, {
         target: input.target,
         sender: input.sender,
         timeoutMs: input.timeoutMs,
-      }) as unknown as JsonObject);
+      }));
     }
   } catch (error) {
-    return result(errorPayload(error), true);
+    return toolResult(toolErrorPayload(error), true);
   }
 
   throw new Error(`unhandled tool: ${name}`);
 }
 
-function messageInputSchema(includeTimeout: boolean): JsonObject {
+function messageInputSchema(options: { includeTimeout: boolean }): JsonObject {
   const properties: JsonObject = {
     target: targetSchema(),
     message: {
@@ -150,7 +151,7 @@ function messageInputSchema(includeTimeout: boolean): JsonObject {
     },
   };
 
-  if (includeTimeout) {
+  if (options.includeTimeout) {
     properties.timeout_ms = {
       type: "integer",
       minimum: 1,
@@ -173,14 +174,14 @@ function targetSchema(): JsonObject {
 }
 
 function parseTargetArgs(args: unknown): { target?: string } {
-  const record = readArgsObject(args, true);
+  const record = readToolArgsObject(args, { optional: true });
   return {
     target: readOptionalString(record, "target"),
   };
 }
 
 function parseMessageArgs(args: unknown): { target?: string; message: string; sender?: string } {
-  const record = readArgsObject(args, false);
+  const record = readToolArgsObject(args, { optional: false });
   return {
     target: readOptionalString(record, "target"),
     message: readRequiredString(record, "message"),
@@ -189,7 +190,7 @@ function parseMessageArgs(args: unknown): { target?: string; message: string; se
 }
 
 function parseAskArgs(args: unknown): { target?: string; message: string; sender?: string; timeoutMs: number } {
-  const record = readArgsObject(args, false);
+  const record = readToolArgsObject(args, { optional: false });
   return {
     target: readOptionalString(record, "target"),
     message: readRequiredString(record, "message"),
@@ -198,25 +199,26 @@ function parseAskArgs(args: unknown): { target?: string; message: string; sender
   };
 }
 
-function readArgsObject(args: unknown, optional: boolean): Record<string, unknown> {
-  if (args === undefined && optional) return {};
+function readToolArgsObject(args: unknown, options: { optional: boolean }): Record<string, unknown> {
+  if (args === undefined && options.optional) return {};
   return readRecordObject(args, "tool arguments must be an object");
 }
 
-function result(data: JsonObject, isError = false): CallToolResult {
+function toolResult(data: StructuredToolPayload, isError = false): CallToolResult {
+  const structuredContent = data as Record<string, unknown>;
   return {
     content: [
       {
         type: "text",
-        text: JSON.stringify(data, null, 2),
+        text: JSON.stringify(structuredContent, null, 2),
       },
     ],
-    structuredContent: data,
+    structuredContent,
     isError,
   };
 }
 
-function errorPayload(error: unknown): JsonObject {
+function toolErrorPayload(error: unknown): JsonObject {
   if (error instanceof TargetResolutionError) {
     return {
       ok: false,

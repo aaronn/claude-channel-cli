@@ -26,7 +26,9 @@ export type EndpointFileResult = {
 };
 
 export async function ensureEndpointsDir(dir = endpointsDir): Promise<void> {
-  await ensureBridgeDir();
+  if (dir === endpointsDir) {
+    await ensureBridgeDir();
+  }
   await mkdir(dir, { recursive: true, mode: 0o700 });
 }
 

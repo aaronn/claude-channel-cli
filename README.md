@@ -182,6 +182,8 @@ claude-channel ask --timeout 45m "From Codex: take up to 45 minutes to review th
 CLAUDE_CHANNEL_ASK_TIMEOUT_MS=2700000 claude-channel ask "From Codex: review this."
 ```
 
+Malformed numeric environment values fall back to defaults. Explicit CLI timeout flags fail fast when invalid.
+
 ## Targeting
 
 Each channel-enabled Claude Code window registers a local endpoint record under:
