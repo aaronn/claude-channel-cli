@@ -5,7 +5,6 @@ import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-reso
 
 export type ChannelMessageOptions = TargetResolutionOptions & {
   sender?: string;
-  json?: boolean;
   searchParams?: URLSearchParams;
   env?: NodeJS.ProcessEnv;
   fetchFn?: typeof fetch;
@@ -51,7 +50,7 @@ export async function postChannelMessage(
   const { endpoint } = await resolveClaudeTarget(options);
   const token = await readToken();
   const sender = resolveSender(options.sender, options.env);
-  const { body, contentType } = buildChannelMessageBody(message, options.json ?? false);
+  const { body, contentType } = buildChannelMessageBody(message, false);
   const search = options.searchParams ? `?${options.searchParams.toString()}` : "";
 
   return {

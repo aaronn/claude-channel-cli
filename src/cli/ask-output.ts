@@ -2,7 +2,7 @@ import type { AskResponse, AskStatus } from "../protocol.js";
 
 export type AskOutputFormat = "text" | "json";
 
-export const ASK_STATUS_EXIT_CODES: Record<AskStatus, number> = {
+const ASK_STATUS_EXIT_CODES: Record<AskStatus, number> = {
   answered: 0,
   needs_user: 3,
   declined: 4,
