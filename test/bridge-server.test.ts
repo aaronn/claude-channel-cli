@@ -1,3 +1,4 @@
+import http from "node:http";
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
@@ -10,6 +11,14 @@ type StartedServer = {
   baseUrl: string;
   close: () => Promise<void>;
 };
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((innerResolve) => {
+    resolve = innerResolve;
+  });
+  return { promise, resolve };
+}
 
 async function startServer(
   options: Partial<Parameters<typeof createBridgeHttpServer>[0]> = {},
@@ -216,6 +225,59 @@ test("POST /ask preserves prompt whitespace", async () => {
 
     assert.equal(response.status, 200);
     assert.deepEqual(asks, [prompt]);
+  } finally {
+    await server.close();
+  }
+});
+
+test("POST /ask cancels the pending request when the caller disconnects", async () => {
+  const emittedRequest = deferred<string>();
+  const cancelledRequest = deferred<string>();
+  class ObservedPendingRequests extends PendingRequests {
+    override cancel(requestId: string, error: Error): boolean {
+      const cancelled = super.cancel(requestId, error);
+      if (cancelled) cancelledRequest.resolve(requestId);
+      return cancelled;
+    }
+  }
+
+  const pendingRequests = new ObservedPendingRequests();
+  const server = await startServer({
+    pendingRequests,
+    defaultAskTimeoutMs: 60_000,
+    channel: {
+      server: {} as ClaudeChannel["server"],
+      emitTell: async () => {},
+      emitAsk: async (requestId) => {
+        emittedRequest.resolve(requestId);
+      },
+    },
+  });
+
+  try {
+    const request = http.request(`${server.baseUrl}/ask`, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer secret",
+        "content-type": "text/plain; charset=utf-8",
+      },
+    });
+    const closed = new Promise<void>((resolve) => {
+      request.once("close", resolve);
+    });
+    request.once("error", () => {});
+    request.end("question");
+
+    const requestId = await emittedRequest.promise;
+    request.destroy();
+
+    await closed;
+    assert.equal(await cancelledRequest.promise, requestId);
+    assert.equal(pendingRequests.complete({
+      requestId,
+      status: "answered",
+      answer: "late answer",
+    }), false);
   } finally {
     await server.close();
   }

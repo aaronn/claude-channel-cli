@@ -51,7 +51,9 @@ async function handleHttpRequest(
     const status = statusForError(error);
     const message = status === 500 ? "internal server error" : errorMessage(error);
     if (status === 500) console.error(`claude-cli-channel unexpected HTTP error: ${errorMessage(error)}`);
-    sendJson(res, status, { ok: false, error: message });
+    if (canWriteResponse(res)) {
+      sendJson(res, status, { ok: false, error: message });
+    }
   }
 }
 
@@ -88,25 +90,53 @@ async function handleAsk(
   const requestId = createRequestId();
   const content = await readMessage(req, options.maxBodyBytes);
   const waitForReply = options.pendingRequests.waitFor(requestId, timeoutMs);
+  // emitAsk can fail before waitForReply is awaited; keep that cancellation rejection handled.
   void waitForReply.catch(() => undefined);
+  const removeDisconnectHandler = cancelPendingAskOnDisconnect(res, () => {
+    options.pendingRequests.cancel(requestId, new Error("caller disconnected before Claude Code reply"));
+  });
 
   try {
     await options.channel.emitAsk(requestId, content, {
       sender: normalizeChannelSender(req.headers["x-claude-channel-sender"]),
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    options.pendingRequests.cancel(requestId, new Error(message));
-    throw error;
-  }
 
-  const completion = await waitForReply;
-  sendJson(res, 200, {
-    ok: true,
-    request_id: requestId,
-    status: completion.status,
-    answer: completion.answer,
-  });
+    const completion = await waitForReply;
+    if (canWriteResponse(res)) {
+      sendJson(res, 200, {
+        ok: true,
+        request_id: requestId,
+        status: completion.status,
+        answer: completion.answer,
+      });
+    }
+  } catch (error) {
+    options.pendingRequests.cancel(requestId, toError(error));
+    if (canWriteResponse(res)) {
+      throw error;
+    }
+  } finally {
+    removeDisconnectHandler();
+  }
+}
+
+function cancelPendingAskOnDisconnect(res: http.ServerResponse, cancel: () => void): () => void {
+  const onClose = (): void => {
+    if (!res.writableFinished) {
+      cancel();
+    }
+  };
+
+  res.once("close", onClose);
+  return () => res.off("close", onClose);
+}
+
+function canWriteResponse(res: http.ServerResponse): boolean {
+  return !res.destroyed && !res.writableEnded;
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
 }
 
 async function readMessage(req: http.IncomingMessage, maxBodyBytes: number): Promise<string> {
