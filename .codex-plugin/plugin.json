@@ -1,7 +1,7 @@
 {
   "name": "claude-cli-channel",
   "version": "0.1.0",
-  "description": "Send messages from Codex into a live Claude Code session through a local channel.",
+  "description": "Codex guidance and typed tools for using the local Claude CLI channel.",
   "author": {
     "name": "Aaron"
   },
@@ -17,8 +17,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Claude CLI Channel",
-    "shortDescription": "Ask a live Claude Code session from Codex",
-    "longDescription": "Use Claude CLI Channel to send one-way messages or review requests from Codex into a visible local Claude Code session while keeping the existing Claude Code and Codex harnesses separate.",
+    "shortDescription": "Use the local Claude channel from Codex",
+    "longDescription": "Provides @claude-cli-channel guidance and typed tools that mirror the claude-channel CLI for listing targets, checking status, sending messages, and asking a live Claude Code session for a response.",
     "developerName": "Aaron",
     "category": "Developer Tools",
     "capabilities": [
