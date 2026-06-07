@@ -1,7 +1,14 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { PendingRequests } from "../pending-requests.js";
-import { buildChannelMeta, isAskStatus, isRequestId, type AskStatus, type ChannelEventMeta } from "../protocol.js";
+import {
+  ASK_STATUSES,
+  buildChannelMeta,
+  isAskStatus,
+  isRequestId,
+  type AskStatus,
+  type ChannelEventMeta,
+} from "../protocol.js";
 import { readRecordObject, readRequiredString } from "../validation.js";
 import { VERSION } from "../version.js";
 
@@ -44,7 +51,7 @@ export function createClaudeChannel(pendingRequests: PendingRequests): ClaudeCha
             },
             status: {
               type: "string",
-              enum: ["answered", "needs_user", "declined", "failed"],
+              enum: [...ASK_STATUSES],
               description: "Outcome of the request.",
             },
             answer: {
