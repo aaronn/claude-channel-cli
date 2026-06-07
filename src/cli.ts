@@ -16,6 +16,7 @@ import { startWaitFeedback } from "./cli/wait-feedback.js";
 import { tokenPath } from "./config/paths.js";
 import { toEndpointCandidates } from "./registry/endpoint-record.js";
 import { endpointsDir, listLiveEndpoints } from "./registry/endpoint-store.js";
+import { VERSION } from "./version.js";
 
 type SendOptions = {
   sender?: string;
@@ -81,7 +82,7 @@ const program = new Command();
 program
   .name("claude-channel")
   .description("Send messages into a live Claude Code session through a local CLI channel.")
-  .version("0.1.0");
+  .version(VERSION);
 
 program
   .command("status")

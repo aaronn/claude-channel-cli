@@ -3,6 +3,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } fr
 import type { PendingRequests } from "../pending-requests.js";
 import { buildChannelMeta, isRequestId, type AskStatus, type ChannelEventMeta } from "../protocol.js";
 import { readRecordObject, readRequiredString } from "../validation.js";
+import { VERSION } from "../version.js";
 
 export type ClaudeChannel = {
   server: Server;
@@ -14,7 +15,7 @@ const COMPLETE_TOOL_NAME = "complete_channel_request";
 
 export function createClaudeChannel(pendingRequests: PendingRequests): ClaudeChannel {
   const server = new Server(
-    { name: "claude-cli-channel", version: "0.1.0" },
+    { name: "claude-cli-channel", version: VERSION },
     {
       capabilities: {
         experimental: { "claude/channel": {} },

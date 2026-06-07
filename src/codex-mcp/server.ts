@@ -13,6 +13,7 @@ import {
   readRecordObject,
   readRequiredString,
 } from "../validation.js";
+import { VERSION } from "../version.js";
 
 type JsonObject = Record<string, unknown>;
 type StructuredToolPayload = object;
@@ -38,7 +39,7 @@ const defaultDeps: CodexChannelToolDeps = {
 
 export function createCodexChannelMcpServer(deps: CodexChannelToolDeps = defaultDeps): Server {
   const server = new Server(
-    { name: "claude-cli-channel-codex", version: "0.1.0" },
+    { name: "claude-cli-channel-codex", version: VERSION },
     {
       capabilities: { tools: {} },
       instructions: [
