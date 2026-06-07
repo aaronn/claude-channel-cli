@@ -1,4 +1,4 @@
-import type { AskResponse } from "../protocol.js";
+import { isRequestId, type AskResponse, type AskStatus } from "../protocol.js";
 import { readToken } from "../config/paths.js";
 import type { EndpointRecord } from "../registry/endpoint-record.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
@@ -30,7 +30,7 @@ export type TargetedAskResponse = AskResponse & {
 
 export async function tellClaude(message: string, options: ChannelMessageOptions = {}): Promise<TellResponse> {
   const { response, endpoint } = await postChannelMessage("/tell", message, options);
-  const body = await readJsonResponse<Omit<TellResponse, "target">>(response, "tell");
+  const body = validateTellResponse(await readJsonResponse(response, "tell"), "tell");
   return { ...body, target: endpoint.endpoint_id };
 }
 
@@ -42,7 +42,7 @@ export async function askClaude(
     ...options,
     searchParams: new URLSearchParams({ timeout_ms: String(options.timeoutMs) }),
   });
-  const body = await readJsonResponse<AskResponse>(response, "ask");
+  const body = validateAskResponse(await readJsonResponse(response, "ask"), "ask");
   return { ...body, target: endpoint.endpoint_id };
 }
 
@@ -71,17 +71,47 @@ export async function postChannelMessage(
   };
 }
 
-export async function readJsonResponse<T>(response: Response, action: string): Promise<T> {
+export async function readJsonResponse(response: Response, action: string): Promise<unknown> {
   const body = await response.text();
   if (!response.ok) {
     throw new Error(`${action} failed: HTTP ${response.status} ${body}`);
   }
 
   try {
-    return JSON.parse(body) as T;
+    return JSON.parse(body) as unknown;
   } catch {
     throw new Error(`${action} failed: response was not valid JSON`);
   }
+}
+
+export function validateTellResponse(value: unknown, action: string): Omit<TellResponse, "target"> {
+  const record = readResponseRecord(value, action);
+  if (record.ok !== true) throw new Error(`${action} failed: response JSON did not match expected shape`);
+  return { ok: true };
+}
+
+export function validateAskResponse(value: unknown, action: string): AskResponse {
+  const record = readResponseRecord(value, action);
+  const requestId = record.request_id;
+  const status = record.status;
+  const answer = record.answer;
+
+  if (
+    record.ok !== true ||
+    typeof requestId !== "string" ||
+    !isRequestId(requestId) ||
+    !isAskStatus(status) ||
+    typeof answer !== "string"
+  ) {
+    throw new Error(`${action} failed: response JSON did not match expected shape`);
+  }
+
+  return {
+    ok: true,
+    request_id: requestId,
+    status,
+    answer,
+  };
 }
 
 export function resolveSender(sender: string | undefined, env: NodeJS.ProcessEnv = process.env): string {
@@ -104,4 +134,18 @@ export function buildChannelMessageBody(message: string, options: ChannelMessage
 
 export function formatChannelUrl(endpoint: Pick<EndpointRecord, "host" | "port">, path: string): string {
   return `http://${endpoint.host}:${endpoint.port}${path}`;
+}
+
+function readResponseRecord(value: unknown, action: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`${action} failed: response JSON did not match expected shape`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function isAskStatus(value: unknown): value is AskStatus {
+  return value === "answered" ||
+    value === "needs_user" ||
+    value === "declined" ||
+    value === "failed";
 }

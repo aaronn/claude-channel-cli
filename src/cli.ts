@@ -109,6 +109,7 @@ program
 
 program
   .command("tell")
+  .alias("send")
   .description("Send a one-way message into the running Claude Code session.")
   .argument("<message...>", "Message text.")
   .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
@@ -122,36 +123,9 @@ program
   });
 
 program
-  .command("send")
-  .description("Alias for tell.")
-  .argument("<message...>", "Message text.")
-  .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
-  .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
-  .action(async (parts: string[], options: SendOptions) => {
-    try {
-      await tell(parts.join(" "), options);
-    } catch (error) {
-      fail(error);
-    }
-  });
-
-program
   .command("tell-file")
+  .alias("send-file")
   .description("Send a file's contents into the running Claude Code session.")
-  .argument("<file>", "File containing the message, or - for stdin.")
-  .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
-  .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
-  .action(async (file: string, options: SendOptions) => {
-    try {
-      await tell(await readPromptInput(file), options);
-    } catch (error) {
-      fail(error);
-    }
-  });
-
-program
-  .command("send-file")
-  .description("Alias for tell-file.")
   .argument("<file>", "File containing the message, or - for stdin.")
   .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")

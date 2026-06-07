@@ -3,9 +3,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import { createBridgeHttpServer } from "../src/http/bridge-server.js";
-import type { ClaudeChannel } from "../src/mcp/claude-channel.js";
 import { PendingRequests } from "../src/pending-requests.js";
-import type { ChannelEventMeta } from "../src/protocol.js";
+import { createAutoAnswerChannel, createTestClaudeChannel } from "./helpers.js";
 
 type StartedServer = {
   baseUrl: string;
@@ -24,19 +23,7 @@ async function startServer(
   options: Partial<Parameters<typeof createBridgeHttpServer>[0]> = {},
 ): Promise<StartedServer> {
   const pendingRequests = options.pendingRequests ?? new PendingRequests();
-  const channel =
-    options.channel ??
-    ({
-      server: {} as ClaudeChannel["server"],
-      emitTell: async () => {},
-      emitAsk: async (requestId: string) => {
-        pendingRequests.complete({
-          requestId,
-          status: "answered",
-          answer: "ok",
-        });
-      },
-    } satisfies ClaudeChannel);
+  const channel = options.channel ?? createAutoAnswerChannel(pendingRequests);
 
   const server = createBridgeHttpServer({
     host: "127.0.0.1",
@@ -111,13 +98,11 @@ test("POST /tell rejects unauthorized requests", async () => {
 test("POST /tell emits a channel event", async () => {
   const tells: string[] = [];
   const server = await startServer({
-    channel: {
-      server: {} as ClaudeChannel["server"],
+    channel: createTestClaudeChannel({
       emitTell: async (content) => {
         tells.push(content);
       },
-      emitAsk: async () => {},
-    },
+    }),
   });
 
   try {
@@ -135,13 +120,11 @@ test("POST /tell preserves prompt whitespace", async () => {
   const tells: string[] = [];
   const prompt = "\n  line one\n    line two\n";
   const server = await startServer({
-    channel: {
-      server: {} as ClaudeChannel["server"],
+    channel: createTestClaudeChannel({
       emitTell: async (content) => {
         tells.push(content);
       },
-      emitAsk: async () => {},
-    },
+    }),
   });
 
   try {
@@ -157,13 +140,11 @@ test("POST /tell preserves prompt whitespace", async () => {
 test("POST /tell validates sender metadata at ingress", async () => {
   const senders: Array<string | undefined> = [];
   const server = await startServer({
-    channel: {
-      server: {} as ClaudeChannel["server"],
-      emitTell: async (_content, meta?: ChannelEventMeta) => {
+    channel: createTestClaudeChannel({
+      emitTell: async (_content, meta) => {
         senders.push(meta?.sender);
       },
-      emitAsk: async () => {},
-    },
+    }),
   });
 
   try {
@@ -206,9 +187,7 @@ test("POST /ask preserves prompt whitespace", async () => {
   const pendingRequests = new PendingRequests();
   const server = await startServer({
     pendingRequests,
-    channel: {
-      server: {} as ClaudeChannel["server"],
-      emitTell: async () => {},
+    channel: createTestClaudeChannel({
       emitAsk: async (requestId, content) => {
         asks.push(content);
         pendingRequests.complete({
@@ -217,7 +196,7 @@ test("POST /ask preserves prompt whitespace", async () => {
           answer: "ok",
         });
       },
-    },
+    }),
   });
 
   try {
@@ -245,13 +224,11 @@ test("POST /ask cancels the pending request when the caller disconnects", async 
   const server = await startServer({
     pendingRequests,
     defaultAskTimeoutMs: 60_000,
-    channel: {
-      server: {} as ClaudeChannel["server"],
-      emitTell: async () => {},
+    channel: createTestClaudeChannel({
       emitAsk: async (requestId) => {
         emittedRequest.resolve(requestId);
       },
-    },
+    }),
   });
 
   try {
@@ -286,11 +263,7 @@ test("POST /ask cancels the pending request when the caller disconnects", async 
 test("POST /ask returns 504 when Claude does not complete the request", async () => {
   const server = await startServer({
     defaultAskTimeoutMs: 5,
-    channel: {
-      server: {} as ClaudeChannel["server"],
-      emitTell: async () => {},
-      emitAsk: async () => {},
-    },
+    channel: createTestClaudeChannel(),
   });
 
   try {
@@ -307,13 +280,11 @@ test("POST /ask returns 504 when Claude does not complete the request", async ()
 test("POST /ask returns generic 500 when emitting the channel request fails", async () => {
   const originalConsoleError = console.error;
   const server = await startServer({
-    channel: {
-      server: {} as ClaudeChannel["server"],
-      emitTell: async () => {},
+    channel: createTestClaudeChannel({
       emitAsk: async () => {
         throw new Error("internal channel failure");
       },
-    },
+    }),
   });
 
   try {

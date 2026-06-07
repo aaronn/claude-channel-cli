@@ -33,6 +33,7 @@ export default defineConfig([
   },
   {
     files: ["test/**/*.ts"],
+    // Node's built-in test runner and local fakes are easier to read without production-level strictness.
     rules: {
       "@typescript-eslint/no-floating-promises": "off",
       "@typescript-eslint/no-unsafe-argument": "off",

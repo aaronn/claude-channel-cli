@@ -1,5 +1,44 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
-.DS_Store
+build/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Logs and diagnostic reports
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime data
+pids/
+*.pid
+*.pid.lock
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Tool caches
+.eslintcache
+.cache/
+.parcel-cache/
+
+# Package artifacts
 *.tgz
+
+# OS files
+.DS_Store
+._*
