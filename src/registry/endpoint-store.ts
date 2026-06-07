@@ -13,16 +13,19 @@ import { isEndpointLive } from "./liveness.js";
 
 export const endpointsDir = path.join(bridgeDir, "endpoints");
 
-export type EndpointStoreOptions = {
+type EndpointStoreOptions = {
   dir?: string;
   now?: Date;
-  exclusive?: boolean;
 };
 
-export type EndpointFileResult = {
+type EndpointFileResult = {
   path: string;
   record?: EndpointRecord;
   error?: string;
+};
+
+type EndpointWriteOptions = EndpointStoreOptions & {
+  exclusive?: boolean;
 };
 
 async function ensureEndpointsDir(dir = endpointsDir): Promise<void> {
@@ -65,7 +68,7 @@ export async function createUniqueEndpointRecord(input: {
   throw new Error("failed to allocate a unique Claude channel endpoint id");
 }
 
-export async function writeEndpointRecord(record: EndpointRecord, options: EndpointStoreOptions = {}): Promise<void> {
+async function writeEndpointRecord(record: EndpointRecord, options: EndpointWriteOptions = {}): Promise<void> {
   const dir = options.dir ?? endpointsDir;
   await ensureEndpointsDir(dir);
   const file = endpointPath(record.endpoint_id, dir);
@@ -89,7 +92,7 @@ export async function removeEndpointRecord(endpointId: string, options: Endpoint
   await rm(endpointPath(endpointId, options.dir ?? endpointsDir), { force: true });
 }
 
-export async function readEndpointRecords(options: EndpointStoreOptions = {}): Promise<EndpointFileResult[]> {
+async function readEndpointRecords(options: EndpointStoreOptions = {}): Promise<EndpointFileResult[]> {
   const dir = options.dir ?? endpointsDir;
   let names: string[];
   try {

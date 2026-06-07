@@ -5,9 +5,10 @@ import { readRecordObject } from "../validation.js";
 import { formatChannelUrl } from "./endpoint-url.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
 
-export type ChannelMessageOptions = TargetResolutionOptions & {
+type ChannelMessageOptions = TargetResolutionOptions & {
   sender?: string;
   searchParams?: URLSearchParams;
+  token?: string;
   env?: NodeJS.ProcessEnv;
   fetchFn?: typeof fetch;
 };
@@ -39,13 +40,13 @@ export async function askClaude(
   return { ...body, target: endpoint.endpoint_id };
 }
 
-export async function postChannelMessage(
+async function postChannelMessage(
   path: "/tell" | "/ask",
   message: string,
   options: ChannelMessageOptions,
 ): Promise<{ response: Response; endpoint: EndpointRecord }> {
   const { endpoint } = await resolveClaudeTarget(options);
-  const token = await readToken();
+  const token = options.token ?? await readToken();
   const sender = resolveSender(options.sender, options.env);
   const search = options.searchParams ? `?${options.searchParams.toString()}` : "";
 
@@ -63,7 +64,7 @@ export async function postChannelMessage(
   };
 }
 
-export async function readJsonResponse(response: Response, action: string): Promise<unknown> {
+async function readJsonResponse(response: Response, action: string): Promise<unknown> {
   const body = await response.text();
   if (!response.ok) {
     throw new Error(`${action} failed: HTTP ${response.status} ${body}`);
@@ -76,13 +77,13 @@ export async function readJsonResponse(response: Response, action: string): Prom
   }
 }
 
-export function validateTellResponse(value: unknown, action: string): Omit<TellResponse, "target"> {
+function validateTellResponse(value: unknown, action: string): Omit<TellResponse, "target"> {
   const record = readResponseRecord(value, action);
   if (record.ok !== true) throw new Error(`${action} failed: response JSON did not match expected shape`);
   return { ok: true };
 }
 
-export function validateAskResponse(value: unknown, action: string): AskResponse {
+function validateAskResponse(value: unknown, action: string): AskResponse {
   const record = readResponseRecord(value, action);
   const requestId = record.request_id;
   const status = record.status;
@@ -106,7 +107,7 @@ export function validateAskResponse(value: unknown, action: string): AskResponse
   };
 }
 
-export function resolveSender(sender: string | undefined, env: NodeJS.ProcessEnv = process.env): string {
+function resolveSender(sender: string | undefined, env: NodeJS.ProcessEnv = process.env): string {
   return sender ?? env.CLAUDE_CHANNEL_SENDER ?? DEFAULT_CHANNEL_SENDER;
 }
 

@@ -112,7 +112,7 @@ export function parseEndpointRecord(raw: string, source = "endpoint record"): En
   };
 }
 
-export function displayNameForProjectDir(projectDir: string): string {
+function displayNameForProjectDir(projectDir: string): string {
   const base = path.basename(projectDir);
   return base || projectDir;
 }
