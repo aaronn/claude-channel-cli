@@ -1,7 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { PendingRequests } from "../pending-requests.js";
-import { buildChannelMeta, isRequestId, type AskStatus, type ChannelEventMeta } from "../protocol.js";
+import { buildChannelMeta, isAskStatus, isRequestId, type AskStatus, type ChannelEventMeta } from "../protocol.js";
 import { readRecordObject, readRequiredString } from "../validation.js";
 import { VERSION } from "../version.js";
 
@@ -134,11 +134,4 @@ function parseCompletionArgs(args: unknown): { request_id: string; status: AskSt
     status,
     answer,
   };
-}
-
-function isAskStatus(value: string): value is AskStatus {
-  return value === "answered" ||
-    value === "needs_user" ||
-    value === "declined" ||
-    value === "failed";
 }

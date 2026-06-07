@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { TargetResolutionError } from "../src/channel-client/target-resolver.js";
 import { callCodexChannelTool, listCodexChannelTools, type CodexChannelToolDeps } from "../src/codex-mcp/server.js";
-import { createCodexToolDeps, testCandidate, testEndpoint } from "./helpers.js";
+import { createCodexToolDeps, testCandidate, testEndpoint, toolText } from "./helpers.js";
 
 test("listCodexChannelTools exposes the Codex-facing tool set", () => {
   assert.deepEqual(
@@ -127,7 +127,7 @@ test("tool argument validation returns tool-visible errors", async () => {
   }, createCodexToolDeps());
 
   assert.equal(result.isError, true);
-  assert.match(String(result.content[0]?.type === "text" ? result.content[0].text : ""), /timeout_ms/);
+  assert.match(toolText(result), /timeout_ms/);
 });
 
 test("target ambiguity returns retry-friendly structured error", async () => {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { callClaudeChannelTool } from "../src/mcp/claude-channel.js";
 import { PendingRequests } from "../src/pending-requests.js";
+import { toolText } from "./helpers.js";
 
 const COMPLETE_TOOL = "complete_channel_request";
 
@@ -15,8 +16,7 @@ test("complete_channel_request resolves a pending request and preserves answer w
     answer: "\n  final answer\n",
   }, pending);
 
-  assert.equal(result.content[0]?.type, "text");
-  assert.equal(result.content[0]?.type === "text" ? result.content[0].text : "", "Codex request completed.");
+  assert.equal(toolText(result), "Codex request completed.");
   assert.deepEqual(await promise, {
     requestId: "req_123",
     status: "answered",
@@ -33,10 +33,7 @@ test("complete_channel_request reports unknown request ids without resolving any
     answer: "missing",
   }, pending);
 
-  assert.equal(
-    result.content[0]?.type === "text" ? result.content[0].text : "",
-    "No pending Codex request matched that request_id.",
-  );
+  assert.equal(toolText(result), "No pending Codex request matched that request_id.");
 });
 
 test("complete_channel_request validates completion arguments", () => {

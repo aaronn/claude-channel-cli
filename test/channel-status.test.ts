@@ -15,6 +15,18 @@ const endpoint: EndpointRecord = {
   last_seen_at: "2026-06-01T00:00:01.000Z",
 };
 
+function healthError(health: unknown): string {
+  if (typeof health !== "object" || health === null || Array.isArray(health)) {
+    assert.fail("health must be an object");
+  }
+
+  const { error } = health as Record<string, unknown>;
+  if (typeof error !== "string") {
+    assert.fail("health.error must be a string");
+  }
+  return error;
+}
+
 test("readChannelStatus reports healthy channel", async () => {
   const result = await readChannelStatus({
     endpoints: [endpoint],
@@ -42,7 +54,7 @@ test("readChannelStatus reports unreachable channel", async () => {
 
   assert.equal(result.ok, false);
   assert.equal(result.report.reachable, false);
-  assert.match(JSON.stringify(result.report.health), /connect ECONNREFUSED/);
+  assert.match(healthError(result.report.health), /connect ECONNREFUSED/);
 });
 
 test("readChannelStatus reports invalid health JSON", async () => {

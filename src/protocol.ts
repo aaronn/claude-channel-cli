@@ -10,7 +10,8 @@ export const DEFAULT_CHANNEL_SENDER = "codex";
 
 export type ChannelEventMeta = Record<string, string>;
 
-export type AskStatus = "answered" | "needs_user" | "declined" | "failed";
+export const ASK_STATUSES = ["answered", "needs_user", "declined", "failed"] as const;
+export type AskStatus = typeof ASK_STATUSES[number];
 
 export type AskCompletion = {
   requestId: string;
@@ -31,6 +32,10 @@ export function createRequestId(): string {
 
 export function isRequestId(value: string): boolean {
   return REQUEST_ID_RE.test(value);
+}
+
+export function isAskStatus(value: unknown): value is AskStatus {
+  return typeof value === "string" && (ASK_STATUSES as readonly string[]).includes(value);
 }
 
 export function sanitizeMeta(meta: ChannelEventMeta): ChannelEventMeta {

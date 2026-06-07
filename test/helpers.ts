@@ -1,3 +1,5 @@
+import assert from "node:assert/strict";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { CodexChannelToolDeps } from "../src/codex-mcp/server.js";
 import type { ClaudeChannel } from "../src/mcp/claude-channel.js";
 import type { PendingRequests } from "../src/pending-requests.js";
@@ -79,4 +81,10 @@ export function createCodexToolDeps(overrides: Partial<CodexChannelToolDeps> = {
     }),
     ...overrides,
   };
+}
+
+export function toolText(result: CallToolResult): string {
+  const first = result.content[0];
+  assert.equal(first?.type, "text");
+  return first.text;
 }

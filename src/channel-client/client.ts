@@ -1,4 +1,4 @@
-import { isRequestId, type AskResponse, type AskStatus } from "../protocol.js";
+import { isAskStatus, isRequestId, type AskResponse } from "../protocol.js";
 import { readToken } from "../config/paths.js";
 import type { EndpointRecord } from "../registry/endpoint-record.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
@@ -130,11 +130,4 @@ function readResponseRecord(value: unknown, action: string): Record<string, unkn
     throw new Error(`${action} failed: response JSON did not match expected shape`);
   }
   return value as Record<string, unknown>;
-}
-
-function isAskStatus(value: unknown): value is AskStatus {
-  return value === "answered" ||
-    value === "needs_user" ||
-    value === "declined" ||
-    value === "failed";
 }

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildChannelMeta,
   createRequestId,
+  isAskStatus,
   isRequestId,
   normalizeChannelSender,
   sanitizeMeta,
@@ -18,6 +19,14 @@ test("createRequestId returns a valid request id", () => {
 test("isRequestId rejects malformed ids", () => {
   assert.equal(isRequestId("req_bad-id"), false);
   assert.equal(isRequestId("bad"), false);
+});
+
+test("isAskStatus accepts the completion status values", () => {
+  assert.equal(isAskStatus("answered"), true);
+  assert.equal(isAskStatus("needs_user"), true);
+  assert.equal(isAskStatus("declined"), true);
+  assert.equal(isAskStatus("failed"), true);
+  assert.equal(isAskStatus("done"), false);
 });
 
 test("sanitizeMeta drops invalid metadata keys", () => {
