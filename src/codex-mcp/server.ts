@@ -16,7 +16,6 @@ import {
 import { VERSION } from "../version.js";
 
 type JsonObject = Record<string, unknown>;
-type StructuredToolPayload = Record<string, unknown>;
 
 export type CodexChannelToolDeps = {
   list: () => Promise<{ targets: EndpointCandidate[] }>;
@@ -205,7 +204,7 @@ function readToolArgsObject(args: unknown, options: { optional: boolean }): Reco
   return readRecordObject(args, "tool arguments must be an object");
 }
 
-function toolResult(data: StructuredToolPayload, isError = false): CallToolResult {
+function toolResult(data: JsonObject, isError = false): CallToolResult {
   return {
     content: [
       {

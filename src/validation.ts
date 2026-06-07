@@ -44,12 +44,8 @@ export function parsePositiveIntegerString(value: string, name: string): number 
 }
 
 export function parsePositiveIntegerEnv(value: string | undefined, name: string, fallback: number): number {
-  if (!value) return fallback;
-  try {
-    return parsePositiveIntegerString(value, name);
-  } catch {
-    return fallback;
-  }
+  if (value === undefined) return fallback;
+  return parsePositiveIntegerString(value, name);
 }
 
 export function readOptionalPositiveInteger(

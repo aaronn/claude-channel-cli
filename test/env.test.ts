@@ -21,15 +21,23 @@ test("readChannelRuntimeConfig uses positive integer environment values", () => 
   });
 });
 
-test("readChannelRuntimeConfig falls back for malformed numeric environment values", () => {
-  assert.deepEqual(readChannelRuntimeConfig({
-    CLAUDE_CHANNEL_PORT: "8790abc",
-    CLAUDE_CHANNEL_MAX_BODY_BYTES: "0",
-    CLAUDE_CHANNEL_ASK_TIMEOUT_MS: "-1",
-  }), {
+test("readChannelRuntimeConfig uses defaults when numeric environment values are absent", () => {
+  assert.deepEqual(readChannelRuntimeConfig({}), {
     host: "127.0.0.1",
     port: DEFAULT_CHANNEL_PORT,
     maxBodyBytes: DEFAULT_MAX_BODY_BYTES,
     defaultAskTimeoutMs: DEFAULT_ASK_TIMEOUT_MS,
   });
+});
+
+test("readChannelRuntimeConfig rejects malformed numeric environment values", () => {
+  assert.throws(() => readChannelRuntimeConfig({
+    CLAUDE_CHANNEL_PORT: "8790abc",
+  }), /CLAUDE_CHANNEL_PORT must be a positive integer/);
+  assert.throws(() => readChannelRuntimeConfig({
+    CLAUDE_CHANNEL_MAX_BODY_BYTES: "0",
+  }), /CLAUDE_CHANNEL_MAX_BODY_BYTES must be a positive integer/);
+  assert.throws(() => readChannelRuntimeConfig({
+    CLAUDE_CHANNEL_ASK_TIMEOUT_MS: "-1",
+  }), /CLAUDE_CHANNEL_ASK_TIMEOUT_MS must be a positive integer/);
 });

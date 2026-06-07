@@ -11,8 +11,11 @@ test("resolveAskTimeoutMs uses CLAUDE_CHANNEL_ASK_TIMEOUT_MS when set", () => {
   assert.equal(resolveAskTimeoutMs({}, { CLAUDE_CHANNEL_ASK_TIMEOUT_MS: "600000" }), 600_000);
 });
 
-test("resolveAskTimeoutMs falls back for malformed CLAUDE_CHANNEL_ASK_TIMEOUT_MS", () => {
-  assert.equal(resolveAskTimeoutMs({}, { CLAUDE_CHANNEL_ASK_TIMEOUT_MS: "nope" }), DEFAULT_ASK_TIMEOUT_MS);
+test("resolveAskTimeoutMs rejects malformed CLAUDE_CHANNEL_ASK_TIMEOUT_MS", () => {
+  assert.throws(
+    () => resolveAskTimeoutMs({}, { CLAUDE_CHANNEL_ASK_TIMEOUT_MS: "nope" }),
+    /CLAUDE_CHANNEL_ASK_TIMEOUT_MS must be a positive integer/,
+  );
 });
 
 test("resolveAskTimeoutMs uses --timeout over environment default", () => {
