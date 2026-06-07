@@ -20,8 +20,6 @@ This is an early preview for local development and research-preview Claude Code 
 - `send` and `send-file` aliases for `tell` and `tell-file`
 - multiple live Claude Code endpoints with explicit `--to` targeting
 
-Planned but not implemented: user-owned labels, persistent current-target config, and richer diagnostics such as `doctor`.
-
 ## Install From Source
 
 ```sh
@@ -261,15 +259,15 @@ Unsafe `sender` metadata falls back to `codex`.
 
 ## Security
 
-The default HTTP listener binds to `127.0.0.1` and asks the operating system for an available local port.
+The channel is a local control surface for a live Claude Code session. It does not expose a remote API by default, but any local process with the bearer token can send messages into the visible Claude Code thread.
 
-On first run, `claude-cli-channel` creates a bearer token at:
+The default HTTP listener binds to `127.0.0.1` and asks the operating system for an available local port. Requests to `/tell` and `/ask` require a bearer token. On first run, `claude-cli-channel` creates that token at:
 
 ```text
 ~/.claude-channel/token
 ```
 
-Sender clients read that token and send it in the `Authorization` header.
+Sender clients read the token and send it in the `Authorization` header. Treat the token as local credentials; a process that can read it can inject prompts into the Claude Code session.
 
 Override the port only for focused debugging:
 
@@ -277,7 +275,7 @@ Override the port only for focused debugging:
 CLAUDE_CHANNEL_PORT=8790 claude --dangerously-load-development-channels server:claude-cli-channel
 ```
 
-`CLAUDE_CHANNEL_HOST` is available for advanced local testing. Binding to anything other than `127.0.0.1` can expose a prompt-injection surface to other machines. Do not use a remote listener without an explicit access-control model.
+`CLAUDE_CHANNEL_HOST` is available for advanced local testing. Binding to anything other than `127.0.0.1` can expose that prompt-injection surface to other machines. Do not use a remote listener without an explicit access-control model.
 
 ## Non-Goals
 

@@ -12,8 +12,6 @@
     ".mcp.example.json",
     "skills",
     "README.md",
-    "CONTRIBUTING.md",
-    "SECURITY.md",
     "LICENSE"
   ],
   "bin": {
