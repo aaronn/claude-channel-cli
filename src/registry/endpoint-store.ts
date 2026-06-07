@@ -25,14 +25,14 @@ export type EndpointFileResult = {
   error?: string;
 };
 
-export async function ensureEndpointsDir(dir = endpointsDir): Promise<void> {
+async function ensureEndpointsDir(dir = endpointsDir): Promise<void> {
   if (dir === endpointsDir) {
     await ensureBridgeDir();
   }
   await mkdir(dir, { recursive: true, mode: 0o700 });
 }
 
-export function endpointPath(endpointId: string, dir = endpointsDir): string {
+function endpointPath(endpointId: string, dir = endpointsDir): string {
   return path.join(dir, `${endpointId}.json`);
 }
 
