@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  buildChannelMessageBody,
   resolveSender,
   validateAskResponse,
   validateTellResponse,
@@ -17,13 +16,6 @@ test("resolveSender falls back to CLAUDE_CHANNEL_SENDER", () => {
 
 test("resolveSender defaults to codex", () => {
   assert.equal(resolveSender(undefined, {}), "codex");
-});
-
-test("buildChannelMessageBody preserves plain text messages", () => {
-  assert.deepEqual(buildChannelMessageBody("\n  hello\n"), {
-    body: "\n  hello\n",
-    contentType: "text/plain; charset=utf-8",
-  });
 });
 
 test("validateTellResponse accepts the tell response envelope", () => {

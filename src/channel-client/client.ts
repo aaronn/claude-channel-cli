@@ -11,11 +11,6 @@ export type ChannelMessageOptions = TargetResolutionOptions & {
   fetchFn?: typeof fetch;
 };
 
-export type ChannelMessageBody = {
-  body: string;
-  contentType: string;
-};
-
 export type TellResponse = {
   ok: true;
   target: string;
@@ -51,7 +46,6 @@ export async function postChannelMessage(
   const { endpoint } = await resolveClaudeTarget(options);
   const token = await readToken();
   const sender = resolveSender(options.sender, options.env);
-  const { body, contentType } = buildChannelMessageBody(message);
   const search = options.searchParams ? `?${options.searchParams.toString()}` : "";
 
   return {
@@ -60,10 +54,10 @@ export async function postChannelMessage(
       method: "POST",
       headers: {
         authorization: `Bearer ${token}`,
-        "content-type": contentType,
+        "content-type": "text/plain; charset=utf-8",
         "x-claude-channel-sender": sender,
       },
-      body,
+      body: message,
     }),
   };
 }
@@ -113,13 +107,6 @@ export function validateAskResponse(value: unknown, action: string): AskResponse
 
 export function resolveSender(sender: string | undefined, env: NodeJS.ProcessEnv = process.env): string {
   return sender ?? env.CLAUDE_CHANNEL_SENDER ?? "codex";
-}
-
-export function buildChannelMessageBody(message: string): ChannelMessageBody {
-  return {
-    body: message,
-    contentType: "text/plain; charset=utf-8",
-  };
 }
 
 export function formatChannelUrl(endpoint: Pick<EndpointRecord, "host" | "port">, path: string): string {
