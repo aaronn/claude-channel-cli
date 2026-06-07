@@ -51,10 +51,21 @@ claude --plugin-dir .
 
 `--plugin-dir` checks plugin loading. It is not the current end-to-end channel smoke test.
 
-Until this project has a marketplace or npm release target, use the bare-MCP development fallback for end-to-end channel testing:
+Until this project has a marketplace or npm release target, use the bare-MCP development fallback for end-to-end channel testing. Run Claude Code from the project that should receive messages:
+
+```sh
+cd /path/to/receiver-project
+export CLAUDE_CLI_CHANNEL_DIR="/path/to/claude-cli-channel"
+claude \
+  --mcp-config "$CLAUDE_CLI_CHANNEL_DIR/.mcp.example.json" \
+  --dangerously-load-development-channels server:claude-cli-channel
+```
+
+`CLAUDE_CLI_CHANNEL_DIR` is the `claude-cli-channel` checkout. The receiver project is the directory where Claude Code is running. If Claude Code must be launched from somewhere else, set `CLAUDE_CHANNEL_PROJECT_DIR` to the receiver project path:
 
 ```sh
 export CLAUDE_CLI_CHANNEL_DIR="/path/to/claude-cli-channel"
+export CLAUDE_CHANNEL_PROJECT_DIR="/path/to/receiver-project"
 claude \
   --mcp-config "$CLAUDE_CLI_CHANNEL_DIR/.mcp.example.json" \
   --dangerously-load-development-channels server:claude-cli-channel

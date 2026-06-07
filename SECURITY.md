@@ -19,4 +19,4 @@ Changing `CLAUDE_CHANNEL_HOST` away from `127.0.0.1` can expose the channel to o
 
 Please report suspected vulnerabilities privately before opening a public issue.
 
-Until a project security contact exists, email the repository owner listed on GitHub or open a minimal issue asking for a private security contact without including exploit details.
+Contact Aaron through the repository owner's GitHub profile. If a private contact path is not available, open a minimal issue asking for a private security contact without including exploit details.

@@ -20,14 +20,17 @@ claude --plugin-dir .
 
 Codex plugin packaging lives in `.codex-plugin/plugin.json`, with root-level `skills/` and `.mcp.json`. The checked-in `.mcp.json` is for Codex plugin tools; pass `.mcp.example.json` with `--mcp-config` for channel smoke tests.
 
-For the current end-to-end channel smoke test, set `CLAUDE_CLI_CHANNEL_DIR` to this checkout and start Claude Code from the receiver project:
+For the current end-to-end channel smoke test, set `CLAUDE_CLI_CHANNEL_DIR` to this checkout and start Claude Code from the project that should receive messages:
 
 ```sh
+cd /path/to/receiver-project
 export CLAUDE_CLI_CHANNEL_DIR="/path/to/claude-cli-channel"
 claude \
   --mcp-config "$CLAUDE_CLI_CHANNEL_DIR/.mcp.example.json" \
   --dangerously-load-development-channels server:claude-cli-channel
 ```
+
+If Claude Code must be launched from a different directory, set `CLAUDE_CHANNEL_PROJECT_DIR` to the receiver project path before starting Claude Code.
 
 The marketplace channel flow is deferred until this project has a real marketplace or package target.
 
