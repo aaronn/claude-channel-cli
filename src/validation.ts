@@ -43,6 +43,15 @@ export function parsePositiveIntegerString(value: string, name: string): number 
   return parsed;
 }
 
+export function parsePositiveIntegerEnv(value: string | undefined, name: string, fallback: number): number {
+  if (!value) return fallback;
+  try {
+    return parsePositiveIntegerString(value, name);
+  } catch {
+    return fallback;
+  }
+}
+
 export function readOptionalPositiveInteger(
   record: Record<string, unknown>,
   key: string,

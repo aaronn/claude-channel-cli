@@ -1,14 +1,16 @@
 import http from "node:http";
 import { errorMessage, HttpError, RequestTimeoutError } from "../errors.js";
-import type { ClaudeChannel } from "../mcp/claude-channel.js";
 import { PendingRequests } from "../pending-requests.js";
-import { createRequestId, normalizeChannelSender } from "../protocol.js";
+import { createRequestId, normalizeChannelSender, type ChannelEventMeta } from "../protocol.js";
 import { isAuthorized } from "../security/auth.js";
 import { parsePositiveIntegerString } from "../validation.js";
 import { messageFromBody, readBody } from "./body.js";
 import { sendJson, sendText } from "./responses.js";
 
-export type ChannelEmitter = Pick<ClaudeChannel, "emitTell" | "emitAsk">;
+export type ChannelEmitter = {
+  emitTell: (content: string, meta?: ChannelEventMeta) => Promise<void>;
+  emitAsk: (requestId: string, content: string, meta?: ChannelEventMeta) => Promise<void>;
+};
 
 export type BridgeHttpServerOptions = {
   host: string;

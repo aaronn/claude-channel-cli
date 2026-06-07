@@ -16,7 +16,7 @@ import {
 import { VERSION } from "../version.js";
 
 type JsonObject = Record<string, unknown>;
-type StructuredToolPayload = object;
+type StructuredToolPayload = Record<string, unknown>;
 
 export type CodexChannelToolDeps = {
   list: () => Promise<{ targets: EndpointCandidate[] }>;
@@ -206,15 +206,14 @@ function readToolArgsObject(args: unknown, options: { optional: boolean }): Reco
 }
 
 function toolResult(data: StructuredToolPayload, isError = false): CallToolResult {
-  const structuredContent = data as Record<string, unknown>;
   return {
     content: [
       {
         type: "text",
-        text: JSON.stringify(structuredContent, null, 2),
+        text: JSON.stringify(data, null, 2),
       },
     ],
-    structuredContent,
+    structuredContent: data,
     isError,
   };
 }

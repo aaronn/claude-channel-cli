@@ -1,5 +1,5 @@
 import { DEFAULT_ASK_TIMEOUT_MS } from "../config/defaults.js";
-import { parsePositiveIntegerString } from "../validation.js";
+import { parsePositiveIntegerEnv, parsePositiveIntegerString } from "../validation.js";
 
 export type AskTimeoutOptions = {
   timeout?: string;
@@ -12,7 +12,7 @@ export function resolveAskTimeoutMs(
 ): number {
   if (options.timeoutMs) return parsePositiveIntegerString(options.timeoutMs, "timeout-ms");
   if (options.timeout) return parseDurationMs(options.timeout);
-  return parsePositiveIntegerEnv(env.CLAUDE_CHANNEL_ASK_TIMEOUT_MS, DEFAULT_ASK_TIMEOUT_MS);
+  return parsePositiveIntegerEnv(env.CLAUDE_CHANNEL_ASK_TIMEOUT_MS, "CLAUDE_CHANNEL_ASK_TIMEOUT_MS", DEFAULT_ASK_TIMEOUT_MS);
 }
 
 export function parseDurationMs(value: string): number {
@@ -36,10 +36,4 @@ export function parseDurationMs(value: string): number {
   };
 
   return amount * multipliers[unit];
-}
-
-function parsePositiveIntegerEnv(value: string | undefined, fallback: number): number {
-  if (!value) return fallback;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }

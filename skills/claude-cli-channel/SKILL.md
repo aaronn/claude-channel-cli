@@ -13,7 +13,7 @@ Use the bundled `claude-cli-channel` MCP tools to communicate with the user's li
 2. Check the selected target with `status_claude_channel`, passing `target` when one was selected.
 3. For one-way messages, use `tell_claude`, passing `target` when needed.
 4. For requests that need a response in Codex, use `ask_claude`, passing `target` when needed.
-5. For review-sized asks, rely on the 30-minute default timeout unless the user asks for a different timeout.
+5. For review-sized or otherwise complex asks, expect replies to take 5-10 minutes or more. Rely on the 30-minute default timeout unless the user asks for a different timeout.
 6. If a tool returns `multiple_claude_targets`, ask the user to choose from `candidates`, then retry with that candidate's `endpoint_id`.
 7. If the MCP tools are unavailable in a development checkout, fall back to the `claude-channel` CLI.
 

@@ -23,7 +23,7 @@ test("readChannelRuntimeConfig uses positive integer environment values", () => 
 
 test("readChannelRuntimeConfig falls back for malformed numeric environment values", () => {
   assert.deepEqual(readChannelRuntimeConfig({
-    CLAUDE_CHANNEL_PORT: "nope",
+    CLAUDE_CHANNEL_PORT: "8790abc",
     CLAUDE_CHANNEL_MAX_BODY_BYTES: "0",
     CLAUDE_CHANNEL_ASK_TIMEOUT_MS: "-1",
   }), {
