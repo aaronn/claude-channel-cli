@@ -35,8 +35,6 @@ test("readChannelStatus reports healthy channel", async () => {
       assert.deepEqual(init, { method: "GET" });
       return new Response(JSON.stringify({ ok: true, pid: 123 }), { status: 200 });
     },
-    endpointsPath: "endpoints",
-    tokenPath: "token",
   });
 
   assert.equal(result.ok, true);

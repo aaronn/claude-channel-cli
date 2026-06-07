@@ -13,9 +13,8 @@ import {
 import { readPromptInput } from "./cli/input.js";
 import { formatAmbiguousTargets, formatEndpointList } from "./cli/list-format.js";
 import { startWaitFeedback } from "./cli/wait-feedback.js";
-import { tokenPath } from "./config/paths.js";
 import { toEndpointCandidates } from "./registry/endpoint-record.js";
-import { endpointsDir, listLiveEndpoints } from "./registry/endpoint-store.js";
+import { listLiveEndpoints } from "./registry/endpoint-store.js";
 import { VERSION } from "./version.js";
 
 type SendOptions = {
@@ -43,7 +42,7 @@ async function list(options: ListOptions): Promise<void> {
 }
 
 async function status(options: SendOptions): Promise<void> {
-  const result = await readChannelStatus({ target: options.to, endpointsPath: endpointsDir, tokenPath });
+  const result = await readChannelStatus({ target: options.to });
   process.stdout.write(
     JSON.stringify(result.report, null, 2) + "\n",
   );

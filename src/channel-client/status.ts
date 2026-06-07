@@ -1,8 +1,8 @@
 import { formatChannelUrl } from "./client.js";
-import { tokenPath as defaultTokenPath } from "../config/paths.js";
+import { tokenPath } from "../config/paths.js";
 import { errorMessage } from "../errors.js";
 import type { EndpointCandidate, EndpointRecord } from "../registry/endpoint-record.js";
-import { endpointsDir as defaultEndpointsDir } from "../registry/endpoint-store.js";
+import { endpointsDir } from "../registry/endpoint-store.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
 
 export type ChannelStatusReport = {
@@ -22,8 +22,6 @@ export type ChannelStatusResult = {
 
 export type ChannelStatusOptions = TargetResolutionOptions & {
   fetchFn?: typeof fetch;
-  endpointsPath?: string;
-  tokenPath?: string;
 };
 
 export async function readChannelStatus(options: ChannelStatusOptions = {}): Promise<ChannelStatusResult> {
@@ -34,8 +32,8 @@ export async function readChannelStatus(options: ChannelStatusOptions = {}): Pro
     target: endpoint.endpoint_id,
     endpoint,
     candidates: resolved.candidates,
-    endpoints_path: options.endpointsPath ?? defaultEndpointsDir,
-    token_path: options.tokenPath ?? defaultTokenPath,
+    endpoints_path: endpointsDir,
+    token_path: tokenPath,
   };
 
   try {
