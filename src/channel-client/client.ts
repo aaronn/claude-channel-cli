@@ -1,6 +1,7 @@
 import { isAskStatus, isRequestId, type AskResponse } from "../protocol.js";
 import { readToken } from "../config/paths.js";
 import type { EndpointRecord } from "../registry/endpoint-record.js";
+import { readRecordObject } from "../validation.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
 
 export type ChannelMessageOptions = TargetResolutionOptions & {
@@ -126,8 +127,5 @@ export function formatChannelUrl(endpoint: Pick<EndpointRecord, "host" | "port">
 }
 
 function readResponseRecord(value: unknown, action: string): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error(`${action} failed: response JSON did not match expected shape`);
-  }
-  return value as Record<string, unknown>;
+  return readRecordObject(value, `${action} failed: response JSON did not match expected shape`);
 }
