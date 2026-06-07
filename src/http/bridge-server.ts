@@ -8,12 +8,14 @@ import { parsePositiveIntegerString } from "../validation.js";
 import { messageFromBody, readBody } from "./body.js";
 import { sendJson, sendText } from "./responses.js";
 
+export type ChannelEmitter = Pick<ClaudeChannel, "emitTell" | "emitAsk">;
+
 export type BridgeHttpServerOptions = {
   host: string;
   token: string;
   maxBodyBytes: number;
   defaultAskTimeoutMs: number;
-  channel: ClaudeChannel;
+  channel: ChannelEmitter;
   pendingRequests: PendingRequests;
 };
 

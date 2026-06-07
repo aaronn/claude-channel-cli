@@ -1,8 +1,8 @@
-import { formatChannelUrl } from "./client.js";
 import { tokenPath } from "../config/paths.js";
 import { errorMessage } from "../errors.js";
 import type { EndpointCandidate, EndpointRecord } from "../registry/endpoint-record.js";
 import { endpointsDir } from "../registry/endpoint-store.js";
+import { formatChannelUrl } from "./endpoint-url.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
 
 export type ChannelStatusReport = {

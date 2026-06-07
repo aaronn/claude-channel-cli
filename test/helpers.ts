@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { CodexChannelToolDeps } from "../src/codex-mcp/server.js";
-import type { ClaudeChannel } from "../src/mcp/claude-channel.js";
+import type { ChannelEmitter } from "../src/http/bridge-server.js";
 import type { PendingRequests } from "../src/pending-requests.js";
 import type { EndpointCandidate, EndpointRecord } from "../src/registry/endpoint-record.js";
 
@@ -32,17 +32,16 @@ export const testCandidate: EndpointCandidate = {
 };
 
 export function createTestClaudeChannel(
-  overrides: Partial<Pick<ClaudeChannel, "emitTell" | "emitAsk">> = {},
-): ClaudeChannel {
+  overrides: Partial<ChannelEmitter> = {},
+): ChannelEmitter {
   return {
-    server: {} as ClaudeChannel["server"],
     emitTell: async () => {},
     emitAsk: async () => {},
     ...overrides,
   };
 }
 
-export function createAutoAnswerChannel(pendingRequests: PendingRequests, answer = "ok"): ClaudeChannel {
+export function createAutoAnswerChannel(pendingRequests: PendingRequests, answer = "ok"): ChannelEmitter {
   return createTestClaudeChannel({
     emitAsk: async (requestId) => {
       pendingRequests.complete({

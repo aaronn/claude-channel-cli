@@ -1,7 +1,8 @@
-import { isAskStatus, isRequestId, type AskResponse } from "../protocol.js";
+import { DEFAULT_CHANNEL_SENDER, isAskStatus, isRequestId, type AskResponse } from "../protocol.js";
 import { readToken } from "../config/paths.js";
 import type { EndpointRecord } from "../registry/endpoint-record.js";
 import { readRecordObject } from "../validation.js";
+import { formatChannelUrl } from "./endpoint-url.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
 
 export type ChannelMessageOptions = TargetResolutionOptions & {
@@ -106,11 +107,7 @@ export function validateAskResponse(value: unknown, action: string): AskResponse
 }
 
 export function resolveSender(sender: string | undefined, env: NodeJS.ProcessEnv = process.env): string {
-  return sender ?? env.CLAUDE_CHANNEL_SENDER ?? "codex";
-}
-
-export function formatChannelUrl(endpoint: Pick<EndpointRecord, "host" | "port">, path: string): string {
-  return `http://${endpoint.host}:${endpoint.port}${path}`;
+  return sender ?? env.CLAUDE_CHANNEL_SENDER ?? DEFAULT_CHANNEL_SENDER;
 }
 
 function readResponseRecord(value: unknown, action: string): Record<string, unknown> {
