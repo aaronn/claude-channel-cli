@@ -15,10 +15,6 @@ export type ChannelMessageBody = {
   contentType: string;
 };
 
-export type ChannelMessageBodyOptions = {
-  format: "json" | "text";
-};
-
 export type TellResponse = {
   ok: true;
   target: string;
@@ -54,7 +50,7 @@ export async function postChannelMessage(
   const { endpoint } = await resolveClaudeTarget(options);
   const token = await readToken();
   const sender = resolveSender(options.sender, options.env);
-  const { body, contentType } = buildChannelMessageBody(message, { format: "text" });
+  const { body, contentType } = buildChannelMessageBody(message);
   const search = options.searchParams ? `?${options.searchParams.toString()}` : "";
 
   return {
@@ -118,14 +114,7 @@ export function resolveSender(sender: string | undefined, env: NodeJS.ProcessEnv
   return sender ?? env.CLAUDE_CHANNEL_SENDER ?? "codex";
 }
 
-export function buildChannelMessageBody(message: string, options: ChannelMessageBodyOptions): ChannelMessageBody {
-  if (options.format === "json") {
-    return {
-      body: JSON.stringify({ message }),
-      contentType: "application/json; charset=utf-8",
-    };
-  }
-
+export function buildChannelMessageBody(message: string): ChannelMessageBody {
   return {
     body: message,
     contentType: "text/plain; charset=utf-8",

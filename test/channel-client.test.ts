@@ -20,16 +20,9 @@ test("resolveSender defaults to codex", () => {
 });
 
 test("buildChannelMessageBody preserves plain text messages", () => {
-  assert.deepEqual(buildChannelMessageBody("\n  hello\n", { format: "text" }), {
+  assert.deepEqual(buildChannelMessageBody("\n  hello\n"), {
     body: "\n  hello\n",
     contentType: "text/plain; charset=utf-8",
-  });
-});
-
-test("buildChannelMessageBody wraps JSON messages", () => {
-  assert.deepEqual(buildChannelMessageBody("\n  hello\n", { format: "json" }), {
-    body: JSON.stringify({ message: "\n  hello\n" }),
-    contentType: "application/json; charset=utf-8",
   });
 });
 
