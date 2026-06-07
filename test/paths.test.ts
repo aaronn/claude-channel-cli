@@ -32,3 +32,17 @@ test("readOrCreateToken reuses an existing token file", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("readOrCreateToken handles concurrent creation", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "claude-channel-token-"));
+  const file = path.join(dir, "token");
+
+  try {
+    const tokens = await Promise.all(Array.from({ length: 5 }, () => readOrCreateToken(file)));
+
+    assert.equal(new Set(tokens).size, 1);
+    assert.equal(await readToken(file), tokens[0]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

@@ -21,7 +21,6 @@ type EndpointStoreOptions = {
 type EndpointFileResult = {
   path: string;
   record?: EndpointRecord;
-  error?: string;
 };
 
 type EndpointWriteOptions = EndpointStoreOptions & {
@@ -111,10 +110,9 @@ async function readEndpointRecords(options: EndpointStoreOptions = {}): Promise<
         path: file,
         record: parseEndpointRecord(await readFile(file, "utf8"), file),
       };
-    } catch (error) {
+    } catch {
       return {
         path: file,
-        error: error instanceof Error ? error.message : String(error),
       };
     }
   }));
@@ -128,7 +126,10 @@ export async function listLiveEndpoints(options: EndpointStoreOptions = {}): Pro
   const live: EndpointRecord[] = [];
 
   for (const result of results) {
-    if (!result.record) continue;
+    if (!result.record) {
+      await rm(result.path, { force: true });
+      continue;
+    }
     if (isEndpointLive(result.record, now)) {
       live.push(result.record);
     } else {

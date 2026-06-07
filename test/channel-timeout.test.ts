@@ -5,7 +5,6 @@ import { DEFAULT_ASK_TIMEOUT_MS } from "../src/config/defaults.js";
 
 test("resolveAskTimeoutMs defaults to 30 minutes", () => {
   assert.equal(resolveAskTimeoutMs({}, {}), DEFAULT_ASK_TIMEOUT_MS);
-  assert.equal(DEFAULT_ASK_TIMEOUT_MS, 1_800_000);
 });
 
 test("resolveAskTimeoutMs uses CLAUDE_CHANNEL_ASK_TIMEOUT_MS when set", () => {

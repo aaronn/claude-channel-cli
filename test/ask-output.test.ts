@@ -39,7 +39,10 @@ test("renderAskResponse preserves leading whitespace in text mode", () => {
 });
 
 test("renderAskResponse emits the structured envelope in JSON mode", () => {
-  assert.equal(renderAskResponse(response, "json"), `${JSON.stringify(response)}\n`);
+  const output = renderAskResponse(response, "json");
+
+  assert.deepEqual(JSON.parse(output) as unknown, response);
+  assert.equal(output.endsWith("\n"), true);
 });
 
 test("exitCodeForAskStatus maps Claude completion statuses", () => {

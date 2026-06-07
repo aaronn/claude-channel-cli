@@ -35,7 +35,7 @@ test("parseEndpointRecord rejects malformed records", () => {
   assert.throws(() => parseEndpointRecord("{", "endpoint"), /expected JSON object/);
 });
 
-test("endpoint store writes, lists, prunes stale records, and removes endpoints", async () => {
+test("endpoint store writes, lists, prunes invalid or stale records, and removes endpoints", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "claude-channel-endpoints-"));
   try {
     const live = await createUniqueEndpointRecord({
@@ -55,8 +55,9 @@ test("endpoint store writes, lists, prunes stale records, and removes endpoints"
     });
 
     await writeEndpointFixture(dir, stale);
+    await writeFile(path.join(dir, "invalid.json"), "{", "utf8");
 
-    assert.equal(await endpointFileCount(dir), 2);
+    assert.equal(await endpointFileCount(dir), 3);
     assert.deepEqual(await listLiveEndpoints({ dir, now: new Date("2026-06-01T00:00:30.000Z") }), [live]);
     assert.equal(await endpointFileCount(dir), 1);
 

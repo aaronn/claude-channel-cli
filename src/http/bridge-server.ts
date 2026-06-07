@@ -5,7 +5,6 @@ import { createRequestId, normalizeChannelSender, type ChannelEventMeta } from "
 import { isAuthorized } from "../security/auth.js";
 import { parsePositiveIntegerString } from "../validation.js";
 import { messageFromBody, readBody } from "./body.js";
-import { sendJson, sendText } from "./responses.js";
 
 export type ChannelEmitter = {
   emitTell: (content: string, meta?: ChannelEventMeta) => Promise<void>;
@@ -137,6 +136,16 @@ function cancelPendingAskOnDisconnect(res: http.ServerResponse, cancel: () => vo
 
 function canWriteResponse(res: http.ServerResponse): boolean {
   return !res.destroyed && !res.writableEnded;
+}
+
+function sendJson(res: http.ServerResponse, status: number, body: unknown): void {
+  res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(body));
+}
+
+function sendText(res: http.ServerResponse, status: number, body: string): void {
+  res.writeHead(status, { "content-type": "text/plain; charset=utf-8" });
+  res.end(body);
 }
 
 function toError(error: unknown): Error {
