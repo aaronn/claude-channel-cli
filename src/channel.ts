@@ -16,7 +16,7 @@ const projectDir = process.env.CLAUDE_CHANNEL_PROJECT_DIR ?? process.cwd();
 let endpointRecord: EndpointRecord | undefined;
 let refreshTimer: NodeJS.Timeout | undefined;
 
-const token = process.env.CLAUDE_CHANNEL_TOKEN ?? (await readOrCreateToken());
+const token = await readOrCreateToken();
 const httpServer = createBridgeHttpServer({
   host: config.host,
   token,

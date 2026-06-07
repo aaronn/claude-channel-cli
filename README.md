@@ -267,7 +267,7 @@ The default HTTP listener binds to `127.0.0.1` and asks the operating system for
 ~/.claude-channel/token
 ```
 
-Sender clients read the token and send it in the `Authorization` header. Treat the token as local credentials; a process that can read it can inject prompts into the Claude Code session.
+Sender clients read the same token file and send it in the `Authorization` header. Treat the token as local credentials; a process that can read it can inject prompts into the Claude Code session. The token file is the source of truth for both the receiver and senders; remove it when no channel is running to rotate the token.
 
 Override the port only for focused debugging:
 
