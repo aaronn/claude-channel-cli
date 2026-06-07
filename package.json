@@ -23,8 +23,6 @@
     "dev:channel": "tsx ./src/channel.ts",
     "channel": "node ./dist/channel.js",
     "codex-mcp": "node ./dist/codex-mcp.js",
-    "send": "node ./dist/cli.js send",
-    "status": "node ./dist/cli.js status",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "typecheck:test": "tsc -p tsconfig.test.json",
