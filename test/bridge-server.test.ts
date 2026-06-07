@@ -71,13 +71,30 @@ async function post(
   });
 }
 
+async function responseJsonObject(response: Response): Promise<Record<string, unknown>> {
+  const body = (await response.json()) as unknown;
+  assert.equal(typeof body, "object");
+  assert.ok(body);
+  assert.equal(Array.isArray(body), false);
+  return body as Record<string, unknown>;
+}
+
+function stringField(body: Record<string, unknown>, key: string): string {
+  const value = body[key];
+  if (typeof value !== "string") {
+    assert.fail(`${key} must be a string`);
+  }
+  return value;
+}
+
 test("GET /health returns health JSON", async () => {
   const server = await startServer();
   try {
     const response = await fetch(`${server.baseUrl}/health`);
+    const body = await responseJsonObject(response);
 
     assert.equal(response.status, 200);
-    assert.equal((await response.json()).ok, true);
+    assert.equal(body.ok, true);
   } finally {
     await server.close();
   }
@@ -109,7 +126,7 @@ test("POST /tell emits a channel event", async () => {
     const response = await post(server.baseUrl, "/tell", "hello");
 
     assert.equal(response.status, 202);
-    assert.deepEqual(await response.json(), { ok: true });
+    assert.deepEqual(await responseJsonObject(response), { ok: true });
     assert.deepEqual(tells, ["hello"]);
   } finally {
     await server.close();
@@ -169,11 +186,11 @@ test("POST /ask waits for matching completion", async () => {
 
   try {
     const response = await post(server.baseUrl, "/ask", "question");
-    const body = await response.json();
+    const body = await responseJsonObject(response);
 
     assert.equal(response.status, 200);
     assert.equal(body.ok, true);
-    assert.match(body.request_id, /^req_/);
+    assert.match(stringField(body, "request_id"), /^req_/);
     assert.equal(body.status, "answered");
     assert.equal(body.answer, "ok");
   } finally {
@@ -268,10 +285,10 @@ test("POST /ask returns 504 when Claude does not complete the request", async ()
 
   try {
     const response = await post(server.baseUrl, "/ask", "question");
-    const body = await response.json();
+    const body = await responseJsonObject(response);
 
     assert.equal(response.status, 504);
-    assert.match(body.error, /timed out waiting for Claude Code reply/);
+    assert.match(stringField(body, "error"), /timed out waiting for Claude Code reply/);
   } finally {
     await server.close();
   }
@@ -290,7 +307,7 @@ test("POST /ask returns generic 500 when emitting the channel request fails", as
   try {
     console.error = () => {};
     const response = await post(server.baseUrl, "/ask", "question");
-    const body = await response.json();
+    const body = await responseJsonObject(response);
 
     assert.equal(response.status, 500);
     assert.deepEqual(body, { ok: false, error: "internal server error" });
@@ -313,7 +330,8 @@ test("POST /tell returns 400 for malformed JSON", async () => {
     });
 
     assert.equal(response.status, 400);
-    assert.equal((await response.json()).error, "invalid JSON request body");
+    const body = await responseJsonObject(response);
+    assert.equal(body.error, "invalid JSON request body");
   } finally {
     await server.close();
   }
@@ -332,7 +350,8 @@ test("POST /tell returns 400 for JSON without message", async () => {
     });
 
     assert.equal(response.status, 400);
-    assert.equal((await response.json()).error, 'JSON requests must include a string "message" field');
+    const body = await responseJsonObject(response);
+    assert.equal(body.error, 'JSON requests must include a string "message" field');
   } finally {
     await server.close();
   }
@@ -344,7 +363,8 @@ test("POST /ask returns 400 for invalid timeout_ms", async () => {
     const response = await post(server.baseUrl, "/ask?timeout_ms=abc", "question");
 
     assert.equal(response.status, 400);
-    assert.equal((await response.json()).error, "timeout_ms must be a positive integer");
+    const body = await responseJsonObject(response);
+    assert.equal(body.error, "timeout_ms must be a positive integer");
   } finally {
     await server.close();
   }
@@ -356,7 +376,8 @@ test("POST /tell returns 413 for oversized bodies", async () => {
     const response = await post(server.baseUrl, "/tell", "large");
 
     assert.equal(response.status, 413);
-    assert.match((await response.json()).error, /request body exceeds 3 bytes/);
+    const body = await responseJsonObject(response);
+    assert.match(stringField(body, "error"), /request body exceeds 3 bytes/);
   } finally {
     await server.close();
   }

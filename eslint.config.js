@@ -33,12 +33,9 @@ export default defineConfig([
   },
   {
     files: ["test/**/*.ts"],
-    // Node's built-in test runner and local fakes are easier to read without production-level strictness.
+    // node:test registrations and async test doubles are intentionally promise-shaped.
     rules: {
       "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-unsafe-argument": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/require-await": "off",
     },
   },
