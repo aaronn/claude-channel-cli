@@ -93,10 +93,10 @@ export function parseEndpointRecord(raw: string, source = "endpoint record"): En
     throw new Error(`${source} is invalid: display_name must be a non-empty string`);
   }
   if (!isValidDate(record.started_at)) {
-    throw new Error(`${source} is invalid: started_at must be an ISO timestamp`);
+    throw new Error(`${source} is invalid: started_at must be a valid timestamp`);
   }
   if (!isValidDate(record.last_seen_at)) {
-    throw new Error(`${source} is invalid: last_seen_at must be an ISO timestamp`);
+    throw new Error(`${source} is invalid: last_seen_at must be a valid timestamp`);
   }
 
   return {

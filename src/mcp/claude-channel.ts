@@ -117,10 +117,10 @@ async function emitChannelEvent(
 function parseCompletionArgs(args: unknown): { request_id: string; status: AskStatus; answer: string } {
   const record = readRecordObject(args, "completion arguments must be an object");
   const requestId = readRequiredString(record, "request_id", { trim: true });
-  const status = readRequiredString(record, "status", { trim: true }) as AskStatus;
+  const status = readRequiredString(record, "status", { trim: true });
   const answer = readRequiredString(record, "answer");
 
-  if (!["answered", "needs_user", "declined", "failed"].includes(status)) {
+  if (!isAskStatus(status)) {
     throw new Error(`invalid completion status: ${status}`);
   }
 
@@ -133,4 +133,11 @@ function parseCompletionArgs(args: unknown): { request_id: string; status: AskSt
     status,
     answer,
   };
+}
+
+function isAskStatus(value: string): value is AskStatus {
+  return value === "answered" ||
+    value === "needs_user" ||
+    value === "declined" ||
+    value === "failed";
 }
