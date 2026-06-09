@@ -2,7 +2,7 @@ import { DEFAULT_CHANNEL_SENDER, isAskStatus, isRequestId, type AskResponse } fr
 import { readToken } from "../config/paths.js";
 import type { EndpointRecord } from "../registry/endpoint-record.js";
 import { readRecordObject } from "../validation.js";
-import { formatChannelUrl } from "./endpoint-url.js";
+import { formatChannelUrl } from "../registry/endpoint-url.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
 
 type ChannelMessageOptions = TargetResolutionOptions & {

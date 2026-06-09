@@ -13,8 +13,8 @@ export async function ensureBridgeDir(): Promise<void> {
 export async function readOrCreateToken(file = tokenPath): Promise<string> {
   await mkdir(dirname(file), { recursive: true, mode: 0o700 });
 
-  const token = randomBytes(32).toString("base64url");
   try {
+    const token = randomBytes(32).toString("base64url");
     await writeFile(file, `${token}\n`, { mode: 0o600, flag: "wx" });
     await chmod(file, 0o600);
     return token;

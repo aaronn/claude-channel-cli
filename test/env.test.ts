@@ -7,7 +7,7 @@ import {
 } from "../src/config/defaults.js";
 import { readChannelRuntimeConfig } from "../src/config/env.js";
 
-test("readChannelRuntimeConfig uses positive integer environment values", () => {
+test("readChannelRuntimeConfig uses numeric environment values", () => {
   assert.deepEqual(readChannelRuntimeConfig({
     CLAUDE_CHANNEL_HOST: "127.0.0.2",
     CLAUDE_CHANNEL_PORT: "8790",
@@ -19,6 +19,10 @@ test("readChannelRuntimeConfig uses positive integer environment values", () => 
     maxBodyBytes: 2048,
     defaultAskTimeoutMs: 600_000,
   });
+});
+
+test("readChannelRuntimeConfig accepts port zero", () => {
+  assert.equal(readChannelRuntimeConfig({ CLAUDE_CHANNEL_PORT: "0" }).port, 0);
 });
 
 test("readChannelRuntimeConfig uses defaults when numeric environment values are absent", () => {
@@ -33,7 +37,7 @@ test("readChannelRuntimeConfig uses defaults when numeric environment values are
 test("readChannelRuntimeConfig rejects malformed numeric environment values", () => {
   assert.throws(() => readChannelRuntimeConfig({
     CLAUDE_CHANNEL_PORT: "8790abc",
-  }), /CLAUDE_CHANNEL_PORT must be a positive integer/);
+  }), /CLAUDE_CHANNEL_PORT must be a non-negative integer/);
   assert.throws(() => readChannelRuntimeConfig({
     CLAUDE_CHANNEL_MAX_BODY_BYTES: "0",
   }), /CLAUDE_CHANNEL_MAX_BODY_BYTES must be a positive integer/);

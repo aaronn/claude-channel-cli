@@ -1,4 +1,4 @@
-import { parsePositiveIntegerEnv } from "../validation.js";
+import { parseNonNegativeIntegerEnv, parsePositiveIntegerEnv } from "../validation.js";
 import {
   DEFAULT_ASK_TIMEOUT_MS,
   DEFAULT_CHANNEL_HOST,
@@ -16,7 +16,7 @@ export type ChannelRuntimeConfig = {
 export function readChannelRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ChannelRuntimeConfig {
   return {
     host: env.CLAUDE_CHANNEL_HOST ?? DEFAULT_CHANNEL_HOST,
-    port: parsePositiveIntegerEnv(env.CLAUDE_CHANNEL_PORT, "CLAUDE_CHANNEL_PORT", DEFAULT_CHANNEL_PORT),
+    port: parseNonNegativeIntegerEnv(env.CLAUDE_CHANNEL_PORT, "CLAUDE_CHANNEL_PORT", DEFAULT_CHANNEL_PORT),
     maxBodyBytes: parsePositiveIntegerEnv(
       env.CLAUDE_CHANNEL_MAX_BODY_BYTES,
       "CLAUDE_CHANNEL_MAX_BODY_BYTES",

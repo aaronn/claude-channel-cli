@@ -8,6 +8,7 @@ import { createBridgeHttpServer } from "./http/bridge-server.js";
 import { createClaudeChannel } from "./mcp/claude-channel.js";
 import { PendingRequests } from "./pending-requests.js";
 import type { EndpointRecord } from "./registry/endpoint-record.js";
+import { formatEndpointBaseUrl } from "./registry/endpoint-url.js";
 import { createUniqueEndpointRecord, refreshEndpoint, removeEndpointRecord } from "./registry/endpoint-store.js";
 
 const config = readChannelRuntimeConfig();
@@ -51,7 +52,7 @@ async function registerEndpoint(port: number): Promise<void> {
     void refreshCurrentEndpoint();
   }, 30_000);
 
-  console.error(`claude-cli-channel listening on http://${config.host}:${port}`);
+  console.error(`claude-cli-channel listening on ${formatEndpointBaseUrl(endpointRecord)}`);
   console.error(`claude-cli-channel target: ${endpointRecord.display_name}`);
   console.error(`claude-cli-channel id: ${endpointRecord.endpoint_id}`);
 }

@@ -43,9 +43,27 @@ export function parsePositiveIntegerString(value: string, name: string): number 
   return parsed;
 }
 
+export function parseNonNegativeIntegerString(value: string, name: string): number {
+  if (!/^\d+$/.test(value)) {
+    throw new Error(`${name} must be a non-negative integer`);
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`${name} must be a non-negative integer`);
+  }
+
+  return parsed;
+}
+
 export function parsePositiveIntegerEnv(value: string | undefined, name: string, fallback: number): number {
   if (value === undefined) return fallback;
   return parsePositiveIntegerString(value, name);
+}
+
+export function parseNonNegativeIntegerEnv(value: string | undefined, name: string, fallback: number): number {
+  if (value === undefined) return fallback;
+  return parseNonNegativeIntegerString(value, name);
 }
 
 export function readOptionalPositiveInteger(
