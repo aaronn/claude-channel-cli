@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { askClaude, tellClaude } from "../src/channel-client/client.js";
+import { askClaude, askTransportTimeoutMs, tellClaude } from "../src/channel-client/client.js";
+import { ASK_TRANSPORT_TIMEOUT_GRACE_MS } from "../src/config/defaults.js";
 import type { EndpointRecord } from "../src/registry/endpoint-record.js";
 
 const endpoint: EndpointRecord = {
@@ -105,6 +106,10 @@ test("askClaude sends timeout_ms and returns the validated response envelope", a
     status: "answered",
     answer: "done",
   });
+});
+
+test("askTransportTimeoutMs adds transport margin outside the app timeout", () => {
+  assert.equal(askTransportTimeoutMs(1_800_000), 1_800_000 + ASK_TRANSPORT_TIMEOUT_GRACE_MS);
 });
 
 test("client response validation rejects malformed envelopes", async () => {

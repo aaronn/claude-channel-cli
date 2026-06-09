@@ -22,14 +22,14 @@ const COMPLETE_TOOL_NAME = "complete_channel_request";
 
 export function createClaudeChannel(pendingRequests: PendingRequests): ClaudeChannel {
   const server = new Server(
-    { name: "claude-cli-channel", version: VERSION },
+    { name: "claude-channel-cli", version: VERSION },
     {
       capabilities: {
         experimental: { "claude/channel": {} },
         tools: {},
       },
       instructions: [
-        'Events from claude-cli-channel arrive as <channel source="claude-cli-channel" ...>.',
+        'Events from claude-channel-cli arrive as <channel source="claude-channel-cli" ...>.',
         'Messages with reply_required="true" are synchronous requests from Codex.',
         `When the work is complete, call ${COMPLETE_TOOL_NAME} with the request_id and final answer.`,
         "Do not call the completion tool for unrelated manual user messages.",
@@ -41,13 +41,13 @@ export function createClaudeChannel(pendingRequests: PendingRequests): ClaudeCha
     tools: [
       {
         name: COMPLETE_TOOL_NAME,
-        description: "Complete a pending Codex request that arrived through the claude-cli-channel channel.",
+        description: "Complete a pending Codex request that arrived through the claude-channel-cli channel.",
         inputSchema: {
           type: "object",
           properties: {
             request_id: {
               type: "string",
-              description: "The request_id attribute from the claude-cli-channel message.",
+              description: "The request_id attribute from the claude-channel-cli message.",
             },
             status: {
               type: "string",

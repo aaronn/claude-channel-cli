@@ -1,6 +1,6 @@
-# claude-cli-channel
+# claude-channel-cli
 
-`claude-cli-channel` sends messages from Codex, or any local shell, into a live Claude Code session.
+`claude-channel-cli` sends messages from Codex, or any local shell, into a live Claude Code session.
 
 Claude Code stays in its normal terminal session. Codex stays in its normal environment. Messages arrive in the visible Claude Code thread, and `ask` requests return through Claude Code's `complete_channel_request` tool.
 
@@ -11,26 +11,26 @@ This is an early preview for local development and research-preview Claude Code 
 Install the sender CLI from npm:
 
 ```sh
-npm install -g claude-cli-channel
+npm install -g claude-channel-cli
 ```
 
 This makes `claude-channel` available on your `PATH`.
 
-For Claude Code channel setup, point `CLAUDE_CLI_CHANNEL_DIR` at the installed package:
+For Claude Code channel setup, point `CLAUDE_CHANNEL_CLI_DIR` at the installed package:
 
 ```sh
-export CLAUDE_CLI_CHANNEL_DIR="$(npm root -g)/claude-cli-channel"
+export CLAUDE_CHANNEL_CLI_DIR="$(npm root -g)/claude-channel-cli"
 ```
 
 For local development from a source checkout:
 
 ```sh
-git clone https://github.com/aaronn/claude-cli-channel.git
-cd claude-cli-channel
+git clone https://github.com/aaronn/claude-channel-cli.git
+cd claude-channel-cli
 npm install
 npm run build
 npm link
-export CLAUDE_CLI_CHANNEL_DIR="$PWD"
+export CLAUDE_CHANNEL_CLI_DIR="$PWD"
 ```
 
 `npm link` makes the checkout's `claude-channel` binary available on your `PATH`.
@@ -52,8 +52,8 @@ Start Claude Code from the project that should receive messages:
 ```sh
 cd /path/to/receiver-project
 claude \
-  --mcp-config "$CLAUDE_CLI_CHANNEL_DIR/.mcp.example.json" \
-  --dangerously-load-development-channels server:claude-cli-channel
+  --mcp-config "$CLAUDE_CHANNEL_CLI_DIR/.mcp.example.json" \
+  --dangerously-load-development-channels server:claude-channel-cli
 ```
 
 If Claude Code must be launched from another directory, set the receiver project explicitly:
@@ -61,8 +61,8 @@ If Claude Code must be launched from another directory, set the receiver project
 ```sh
 export CLAUDE_CHANNEL_PROJECT_DIR="/path/to/receiver-project"
 claude \
-  --mcp-config "$CLAUDE_CLI_CHANNEL_DIR/.mcp.example.json" \
-  --dangerously-load-development-channels server:claude-cli-channel
+  --mcp-config "$CLAUDE_CHANNEL_CLI_DIR/.mcp.example.json" \
+  --dangerously-load-development-channels server:claude-channel-cli
 ```
 
 For persistent local development setup, copy the `.mcp.example.json` server entry into the receiver project's `.mcp.json`.
@@ -93,7 +93,7 @@ Ask for a response:
 claude-channel ask "From Codex: review this and complete the request."
 ```
 
-`ask` defaults to a 30-minute timeout. Waiting progress goes to stderr every 30 seconds; stdout remains Claude's final answer text. Use `--output json` when a script needs the full response envelope:
+`ask` defaults to a 30-minute timeout. The HTTP client waits 60 seconds longer so the bridge can return its own timeout response first. Waiting progress goes to stderr every 30 seconds; stdout remains Claude's final answer text. Use `--output json` when a script needs the full response envelope:
 
 ```sh
 claude-channel ask --output json "From Codex: review this."
@@ -117,14 +117,16 @@ claude-channel ask --timeout 45m "From Codex: take up to 45 minutes to review th
 CLAUDE_CHANNEL_ASK_TIMEOUT_MS=2700000 claude-channel ask "From Codex: review this."
 ```
 
+When using the Codex plugin, keep the MCP tool timeout outside the ask timeout too. The bundled Codex MCP config uses `tool_timeout_sec: 1920`, giving the 30-minute ask timeout two minutes of outer margin.
+
 ## Codex Desktop
 
-The Codex plugin is optional. It gives `@claude-cli-channel` workflow guidance and typed tools that mirror the CLI commands, so Codex can list targets, check status, tell Claude, and ask Claude without shell quoting or CLI-output parsing.
+The Codex plugin is optional. It gives `@claude-channel-cli` workflow guidance and typed tools that mirror the CLI commands, so Codex can list targets, check status, tell Claude, and ask Claude without shell quoting or CLI-output parsing.
 
 Use it when you want Codex to ask Claude Code and then handle the response:
 
 ```text
-@claude-cli-channel ask Claude Code to review the current branch for correctness and test coverage. After it responds, decide which findings you agree with.
+@claude-channel-cli ask Claude Code to review the current branch for correctness and test coverage. After it responds, decide which findings you agree with.
 ```
 
 Codex should send only the Claude-facing prompt through the channel. Follow-up instructions such as “then decide which findings you agree with” are Codex-local handling instructions.
@@ -154,7 +156,7 @@ CLAUDE_CHANNEL_TARGET=ep_ABC234 claude-channel status
 
 The channel is a local control surface for a live Claude Code session. It does not expose a remote API by default, but any local process with the bearer token can send messages into the visible Claude Code thread.
 
-The default HTTP listener binds to `127.0.0.1` and asks the operating system for an available local port. Requests to `/tell` and `/ask` require a bearer token. On first run, `claude-cli-channel` creates that token at:
+The default HTTP listener binds to `127.0.0.1` and asks the operating system for an available local port. Requests to `/tell` and `/ask` require a bearer token. On first run, `claude-channel-cli` creates that token at:
 
 ```text
 ~/.claude-channel/token

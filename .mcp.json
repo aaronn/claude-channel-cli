@@ -1,9 +1,10 @@
 {
   "mcpServers": {
-    "claude-cli-channel-codex": {
+    "claude-channel-cli-codex": {
       "command": "node",
       "args": ["./dist/codex-mcp.js"],
-      "cwd": "."
+      "cwd": ".",
+      "tool_timeout_sec": 1920
     }
   }
 }

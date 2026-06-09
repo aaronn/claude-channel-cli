@@ -1,6 +1,6 @@
 {
-  "name": "claude-cli-channel",
-  "displayName": "Claude CLI Channel",
+  "name": "claude-channel-cli",
+  "displayName": "Claude Channel CLI",
   "version": "0.1.0",
   "description": "Local channel for sending messages from Codex or a shell into a live Claude Code session.",
   "author": {
@@ -8,14 +8,14 @@
   },
   "license": "MIT",
   "mcpServers": {
-    "claude-cli-channel": {
+    "claude-channel-cli": {
       "command": "node",
       "args": ["${CLAUDE_PLUGIN_ROOT}/dist/channel.js"]
     }
   },
   "channels": [
     {
-      "server": "claude-cli-channel"
+      "server": "claude-channel-cli"
     }
   ]
 }

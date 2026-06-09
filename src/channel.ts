@@ -34,7 +34,7 @@ httpServer.listen(config.port, config.host, () => {
   const address = httpServer.address();
   const port = typeof address === "object" && address ? address.port : config.port;
   void registerEndpoint(port).catch((error) => {
-    console.error(`claude-cli-channel failed to register endpoint: ${errorMessage(error)}`);
+    console.error(`claude-channel-cli failed to register endpoint: ${errorMessage(error)}`);
     void shutdown().finally(() => process.exit(1));
   });
 });
@@ -52,9 +52,9 @@ async function registerEndpoint(port: number): Promise<void> {
     void refreshCurrentEndpoint();
   }, 30_000);
 
-  console.error(`claude-cli-channel listening on ${formatEndpointBaseUrl(endpointRecord)}`);
-  console.error(`claude-cli-channel target: ${endpointRecord.display_name}`);
-  console.error(`claude-cli-channel id: ${endpointRecord.endpoint_id}`);
+  console.error(`claude-channel-cli listening on ${formatEndpointBaseUrl(endpointRecord)}`);
+  console.error(`claude-channel-cli target: ${endpointRecord.display_name}`);
+  console.error(`claude-channel-cli id: ${endpointRecord.endpoint_id}`);
 }
 
 async function refreshCurrentEndpoint(): Promise<void> {
@@ -62,13 +62,13 @@ async function refreshCurrentEndpoint(): Promise<void> {
   try {
     endpointRecord = await refreshEndpoint(endpointRecord);
   } catch (error) {
-    console.error(`claude-cli-channel failed to refresh endpoint ${endpointRecord.endpoint_id}: ${errorMessage(error)}`);
+    console.error(`claude-channel-cli failed to refresh endpoint ${endpointRecord.endpoint_id}: ${errorMessage(error)}`);
   }
 }
 
 async function shutdown(): Promise<void> {
   if (refreshTimer) clearInterval(refreshTimer);
-  pendingRequests.rejectAll(new Error("claude-cli-channel server stopped"));
+  pendingRequests.rejectAll(new Error("claude-channel-cli server stopped"));
   if (endpointRecord) {
     await removeEndpointRecord(endpointRecord.endpoint_id);
   }

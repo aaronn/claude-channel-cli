@@ -1,7 +1,7 @@
 {
-  "name": "claude-cli-channel",
+  "name": "claude-channel-cli",
   "version": "0.1.0",
-  "description": "Codex guidance and typed tools for using the local Claude CLI channel.",
+  "description": "Codex guidance and typed tools for using the local Claude Channel CLI.",
   "author": {
     "name": "Aaron"
   },
@@ -16,9 +16,9 @@
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "Claude CLI Channel",
+    "displayName": "Claude Channel CLI",
     "shortDescription": "Use the local Claude channel from Codex",
-    "longDescription": "Provides @claude-cli-channel guidance and typed tools that mirror the claude-channel CLI for listing targets, checking status, sending messages, and asking a live Claude Code session for a response.",
+    "longDescription": "Provides @claude-channel-cli guidance and typed tools that mirror the claude-channel CLI for listing targets, checking status, sending messages, and asking a live Claude Code session for a response.",
     "developerName": "Aaron",
     "category": "Developer Tools",
     "capabilities": [
@@ -31,7 +31,7 @@
       "Send context to my Claude Code session",
       "Check whether the Claude channel is running"
     ],
-    "brandColor": "#6B5BD2",
+    "brandColor": "#D97757",
     "screenshots": []
   }
 }

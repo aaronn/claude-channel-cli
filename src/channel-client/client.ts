@@ -1,13 +1,16 @@
+import { Agent } from "undici";
 import { DEFAULT_CHANNEL_SENDER, isAskStatus, isRequestId, type AskResponse } from "../protocol.js";
 import { readToken } from "../config/paths.js";
 import type { EndpointRecord } from "../registry/endpoint-record.js";
 import { readRecordObject } from "../validation.js";
 import { formatChannelUrl } from "../registry/endpoint-url.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
+import { ASK_TRANSPORT_TIMEOUT_GRACE_MS } from "../config/defaults.js";
 
 type ChannelMessageOptions = TargetResolutionOptions & {
   sender?: string;
   searchParams?: URLSearchParams;
+  transportTimeoutMs?: number;
   token?: string;
   env?: NodeJS.ProcessEnv;
   fetchFn?: typeof fetch;
@@ -35,9 +38,14 @@ export async function askClaude(
   const { response, endpoint } = await postChannelMessage("/ask", message, {
     ...options,
     searchParams: new URLSearchParams({ timeout_ms: String(options.timeoutMs) }),
+    transportTimeoutMs: askTransportTimeoutMs(options.timeoutMs),
   });
   const body = validateAskResponse(await readJsonResponse(response, "ask"), "ask");
   return { ...body, target: endpoint.endpoint_id };
+}
+
+export function askTransportTimeoutMs(timeoutMs: number): number {
+  return timeoutMs + ASK_TRANSPORT_TIMEOUT_GRACE_MS;
 }
 
 async function postChannelMessage(
@@ -50,18 +58,45 @@ async function postChannelMessage(
   const sender = resolveSender(options.sender, options.env);
   const search = options.searchParams ? `?${options.searchParams.toString()}` : "";
 
+  const url = formatChannelUrl(endpoint, `${path}${search}`);
+  const init: RequestInit = {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "text/plain; charset=utf-8",
+      "x-claude-channel-sender": sender,
+    },
+    body: message,
+  };
+
   return {
     endpoint,
-    response: await (options.fetchFn ?? fetch)(formatChannelUrl(endpoint, `${path}${search}`), {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "content-type": "text/plain; charset=utf-8",
-        "x-claude-channel-sender": sender,
-      },
-      body: message,
-    }),
+    response: options.fetchFn
+      ? await options.fetchFn(url, init)
+      : await fetch(url, withTransportTimeout(init, options.transportTimeoutMs)),
   };
+}
+
+const askTransportDispatchers = new Map<number, Agent>();
+
+function withTransportTimeout(init: RequestInit, timeoutMs: number | undefined): RequestInit {
+  if (!timeoutMs) return init;
+  return {
+    ...init,
+    dispatcher: askTransportDispatcher(timeoutMs),
+  } as RequestInit;
+}
+
+function askTransportDispatcher(timeoutMs: number): Agent {
+  const existing = askTransportDispatchers.get(timeoutMs);
+  if (existing) return existing;
+
+  const dispatcher = new Agent({
+    headersTimeout: timeoutMs,
+    bodyTimeout: timeoutMs,
+  });
+  askTransportDispatchers.set(timeoutMs, dispatcher);
+  return dispatcher;
 }
 
 async function readJsonResponse(response: Response, action: string): Promise<unknown> {

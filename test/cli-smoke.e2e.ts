@@ -109,7 +109,7 @@ async function writeChannelFixture(input: {
       port: input.port,
       pid: process.pid,
       project_dir: input.projectDir,
-      display_name: "claude-cli-channel",
+      display_name: "claude-channel-cli",
       started_at: now,
       last_seen_at: now,
     }, null, 2)}\n`,

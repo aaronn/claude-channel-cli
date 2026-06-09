@@ -38,11 +38,11 @@ const defaultDeps: CodexChannelToolDeps = {
 
 export function createCodexChannelMcpServer(deps: CodexChannelToolDeps = defaultDeps): Server {
   const server = new Server(
-    { name: "claude-cli-channel-codex", version: VERSION },
+    { name: "claude-channel-cli-codex", version: VERSION },
     {
       capabilities: { tools: {} },
       instructions: [
-        "Use these tools to communicate with the user's live Claude Code session through claude-cli-channel.",
+        "Use these tools to communicate with the user's live Claude Code session through claude-channel-cli.",
         "Call list_claude_targets or status_claude_channel before tell_claude or ask_claude.",
         "Use tell_claude only for one-way messages.",
         "Use ask_claude when Codex needs Claude Code's answer returned as tool output.",
@@ -77,7 +77,7 @@ export function listCodexChannelTools(): Array<{
     },
     {
       name: STATUS_TOOL,
-      description: "Check whether the local claude-cli-channel bridge is reachable.",
+      description: "Check whether the local claude-channel-cli bridge is reachable.",
       inputSchema: {
         type: "object",
         properties: {

@@ -53,7 +53,7 @@ async function handleHttpRequest(
   } catch (error) {
     const status = statusForError(error);
     const message = status === 500 ? "internal server error" : errorMessage(error);
-    if (status === 500) console.error(`claude-cli-channel unexpected HTTP error: ${errorMessage(error)}`);
+    if (status === 500) console.error(`claude-channel-cli unexpected HTTP error: ${errorMessage(error)}`);
     if (canWriteResponse(res)) {
       sendJson(res, status, { ok: false, error: message });
     }
