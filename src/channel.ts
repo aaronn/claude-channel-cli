@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import path from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { readChannelRuntimeConfig } from "./config/env.js";
 import { readOrCreateToken } from "./config/paths.js";
@@ -12,7 +13,7 @@ import { createUniqueEndpointRecord, refreshEndpoint, removeEndpointRecord } fro
 const config = readChannelRuntimeConfig();
 const pendingRequests = new PendingRequests();
 const channel = createClaudeChannel(pendingRequests);
-const projectDir = process.env.CLAUDE_CHANNEL_PROJECT_DIR ?? process.cwd();
+const projectDir = path.resolve(process.env.CLAUDE_CHANNEL_PROJECT_DIR ?? process.cwd());
 let endpointRecord: EndpointRecord | undefined;
 let refreshTimer: NodeJS.Timeout | undefined;
 
