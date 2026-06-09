@@ -52,7 +52,7 @@ claude \
 
 For persistent local development setup, copy the `.mcp.example.json` server entry into the receiver project's `.mcp.json`.
 
-TODO: Add `.claude-plugin/marketplace.json` after the package source, marketplace name, and release policy are finalized.
+Marketplace packaging is intentionally omitted until the package source, marketplace name, and release policy are finalized.
 
 ## Use the CLI
 
