@@ -32,7 +32,7 @@ async function handleHttpRequest(
   options: BridgeHttpServerOptions,
 ): Promise<void> {
   try {
-    const url = new URL(req.url ?? "/", `http://${options.host}`);
+    const url = new URL(req.url ?? "/", "http://localhost");
 
     if (req.method === "GET" && url.pathname === "/health") {
       sendJson(res, 200, { ok: true, pid: process.pid });

@@ -100,6 +100,19 @@ test("GET /health returns health JSON", async () => {
   }
 });
 
+test("GET /health parses routes independently of configured host syntax", async () => {
+  const server = await startServer({ host: "::1" });
+  try {
+    const response = await fetch(`${server.baseUrl}/health`);
+    const body = await responseJsonObject(response);
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+  } finally {
+    await server.close();
+  }
+});
+
 test("POST /tell rejects unauthorized requests", async () => {
   const server = await startServer();
   try {
