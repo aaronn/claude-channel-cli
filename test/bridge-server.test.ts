@@ -57,16 +57,20 @@ async function post(
   baseUrl: string,
   path: string,
   body = "hello",
-  token = "secret",
+  token: string | null = "secret",
   headers: Record<string, string> = {},
 ): Promise<Response> {
+  const requestHeaders: Record<string, string> = {
+    "content-type": "text/plain; charset=utf-8",
+    ...headers,
+  };
+  if (token !== null) {
+    requestHeaders.authorization ??= `Bearer ${token}`;
+  }
+
   return fetch(`${baseUrl}${path}`, {
     method: "POST",
-    headers: {
-      authorization: `Bearer ${token}`,
-      "content-type": "text/plain; charset=utf-8",
-      ...headers,
-    },
+    headers: requestHeaders,
     body,
   });
 }
@@ -113,13 +117,19 @@ test("GET /health parses routes independently of configured host syntax", async 
   }
 });
 
-test("POST /tell rejects unauthorized requests", async () => {
+test("POST /tell rejects requests without the expected bearer token", async () => {
   const server = await startServer();
   try {
-    const response = await post(server.baseUrl, "/tell", "hello", "wrong");
+    const responses = await Promise.all([
+      post(server.baseUrl, "/tell", "hello", null),
+      post(server.baseUrl, "/tell", "hello", null, { authorization: "secret" }),
+      post(server.baseUrl, "/tell", "hello", "wrong"),
+    ]);
 
-    assert.equal(response.status, 401);
-    assert.equal(await response.text(), "unauthorized\n");
+    for (const response of responses) {
+      assert.equal(response.status, 401);
+      assert.equal(await response.text(), "unauthorized\n");
+    }
   } finally {
     await server.close();
   }
@@ -146,7 +156,7 @@ test("POST /tell emits a channel event", async () => {
   }
 });
 
-test("POST /tell preserves prompt whitespace", async () => {
+test("POST /tell preserves prompt whitespace for text and JSON bodies", async () => {
   const tells: string[] = [];
   const prompt = "\n  line one\n    line two\n";
   const server = await startServer({
@@ -158,10 +168,18 @@ test("POST /tell preserves prompt whitespace", async () => {
   });
 
   try {
-    const response = await post(server.baseUrl, "/tell", prompt);
+    const textResponse = await post(server.baseUrl, "/tell", prompt);
+    const jsonResponse = await post(
+      server.baseUrl,
+      "/tell",
+      JSON.stringify({ message: prompt }),
+      "secret",
+      { "content-type": "application/json; charset=utf-8" },
+    );
 
-    assert.equal(response.status, 202);
-    assert.deepEqual(tells, [prompt]);
+    assert.equal(textResponse.status, 202);
+    assert.equal(jsonResponse.status, 202);
+    assert.deepEqual(tells, [prompt, prompt]);
   } finally {
     await server.close();
   }

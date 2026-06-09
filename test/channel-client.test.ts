@@ -6,7 +6,7 @@ import type { EndpointRecord } from "../src/registry/endpoint-record.js";
 const endpoint: EndpointRecord = {
   schema_version: 1,
   endpoint_id: "ep_ABC234",
-  host: "127.0.0.1",
+  host: "::1",
   port: 8788,
   pid: 123,
   project_dir: "/repo/app",
@@ -48,7 +48,7 @@ test("tellClaude sends a plain-text request with auth and sender metadata", asyn
   });
 
   assert.deepEqual(result, { ok: true, target: endpoint.endpoint_id });
-  assert.equal(request?.url, "http://127.0.0.1:8788/tell");
+  assert.equal(request?.url, "http://[::1]:8788/tell");
   assert.equal(request?.init?.method, "POST");
   assert.equal(request?.init?.body, "\n  hello\n");
   assert.deepEqual(requestHeaders(request?.init), {
@@ -87,7 +87,7 @@ test("askClaude sends timeout_ms and returns the validated response envelope", a
     token: "secret",
     timeoutMs: 42,
     fetchFn: async (url, init) => {
-      assert.equal(requestUrl(url), "http://127.0.0.1:8788/ask?timeout_ms=42");
+      assert.equal(requestUrl(url), "http://[::1]:8788/ask?timeout_ms=42");
       assert.equal(init?.body, "question");
       return jsonResponse({
         ok: true,
