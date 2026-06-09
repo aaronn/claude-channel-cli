@@ -16,6 +16,8 @@ type ReceivedRequest = {
   body: string;
 };
 
+const CLI_TIMEOUT_MS = 5_000;
+
 test("built CLI sends a tell request through the local channel registry", async () => {
   const repoDir = process.cwd();
   const tempHome = await mkdtemp(path.join(tmpdir(), "claude-channel-cli-smoke-"));
@@ -136,15 +138,24 @@ async function runCli(args: string[], options: {
     stderr += chunk;
   });
 
+  let timedOut = false;
   const timeout = setTimeout(() => {
+    timedOut = true;
     child.kill("SIGKILL");
-  }, 5_000);
+  }, CLI_TIMEOUT_MS);
 
   try {
     const code = await new Promise<number | null>((resolve, reject) => {
       child.once("error", reject);
       child.once("close", resolve);
     });
+    if (timedOut) {
+      throw new Error([
+        `CLI timed out after ${CLI_TIMEOUT_MS}ms`,
+        `stdout: ${stdout}`,
+        `stderr: ${stderr}`,
+      ].join("\n"));
+    }
     return { code, stdout, stderr };
   } finally {
     clearTimeout(timeout);
