@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "Local Claude Code channel for sending messages from Codex or a shell into a live Claude Code session.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aaronn/claude-cli-channel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aaronn/claude-cli-channel/issues"
+  },
+  "homepage": "https://github.com/aaronn/claude-cli-channel#readme",
   "type": "module",
   "files": [
     "dist",

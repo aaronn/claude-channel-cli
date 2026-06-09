@@ -9,7 +9,7 @@ This is an early preview for local development and research-preview Claude Code 
 ## Install
 
 ```sh
-git clone <repo-url>
+git clone https://github.com/aaronn/claude-cli-channel.git
 cd claude-cli-channel
 npm install
 npm run build
@@ -52,7 +52,7 @@ claude \
 
 For persistent local development setup, copy the `.mcp.example.json` server entry into the receiver project's `.mcp.json`.
 
-TODO: Add `.claude-plugin/marketplace.json` after the repo URL, package source, marketplace name, and release policy are finalized.
+TODO: Add `.claude-plugin/marketplace.json` after the package source, marketplace name, and release policy are finalized.
 
 ## Use the CLI
 
