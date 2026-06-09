@@ -35,8 +35,9 @@
     "typecheck": "tsc --noEmit",
     "typecheck:test": "tsc -p tsconfig.test.json",
     "test": "node --import tsx --test test/**/*.test.ts",
+    "test:e2e": "npm run build && node --import tsx --test test/**/*.e2e.ts",
     "check:version": "node ./scripts/check-version.mjs",
-    "check": "npm run check:version && npm run lint && npm run typecheck && npm run typecheck:test && npm test",
+    "check": "npm run check:version && npm run lint && npm run typecheck && npm run typecheck:test && npm test && npm run test:e2e",
     "validate:plugin": "claude plugin validate . --strict",
     "check:local": "npm run check && npm audit --audit-level=moderate && npm run validate:plugin && npm pack --dry-run",
     "prepack": "npm run build"

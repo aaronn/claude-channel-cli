@@ -1,0 +1,178 @@
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import http from "node:http";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import test from "node:test";
+import type { AddressInfo } from "node:net";
+
+type ReceivedRequest = {
+  method: string | undefined;
+  url: string | undefined;
+  authorization: string | undefined;
+  sender: string | string[] | undefined;
+  contentType: string | string[] | undefined;
+  body: string;
+};
+
+test("built CLI sends a tell request through the local channel registry", async () => {
+  const repoDir = process.cwd();
+  const tempHome = await mkdtemp(path.join(tmpdir(), "claude-channel-cli-smoke-"));
+  let received: ReceivedRequest | undefined;
+
+  const server = http.createServer((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer | string) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    req.on("end", () => {
+      received = {
+        method: req.method,
+        url: req.url,
+        authorization: req.headers.authorization,
+        sender: req.headers["x-claude-channel-sender"],
+        contentType: req.headers["content-type"],
+        body: Buffer.concat(chunks).toString("utf8"),
+      };
+
+      res.writeHead(202, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+  });
+
+  try {
+    await listen(server);
+    const address = server.address();
+    assert.equal(typeof address, "object");
+    assert.ok(address);
+
+    await writeChannelFixture({
+      home: tempHome,
+      port: (address as AddressInfo).port,
+      projectDir: repoDir,
+    });
+
+    const result = await runCli([
+      "tell",
+      "--sender",
+      "smoke-test",
+      "From",
+      "smoke:",
+      "hello",
+    ], {
+      cwd: repoDir,
+      env: {
+        ...process.env,
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+        CLAUDE_CHANNEL_TARGET: "ep_ABC234",
+      },
+    });
+
+    assert.equal(result.code, 0);
+    assert.equal(result.stderr, "");
+    assert.deepEqual(JSON.parse(result.stdout) as unknown, { ok: true, target: "ep_ABC234" });
+    assert.deepEqual(received, {
+      method: "POST",
+      url: "/tell",
+      authorization: "Bearer smoke-token",
+      sender: "smoke-test",
+      contentType: "text/plain; charset=utf-8",
+      body: "From smoke: hello",
+    });
+  } finally {
+    await closeServer(server);
+    await rm(tempHome, { recursive: true, force: true });
+  }
+});
+
+async function writeChannelFixture(input: {
+  home: string;
+  port: number;
+  projectDir: string;
+}): Promise<void> {
+  const bridgeDir = path.join(input.home, ".claude-channel");
+  const endpointsDir = path.join(bridgeDir, "endpoints");
+  const now = new Date().toISOString();
+
+  await mkdir(endpointsDir, { recursive: true });
+  await writeFile(path.join(bridgeDir, "token"), "smoke-token\n", "utf8");
+  await writeFile(
+    path.join(endpointsDir, "ep_ABC234.json"),
+    `${JSON.stringify({
+      schema_version: 1,
+      endpoint_id: "ep_ABC234",
+      host: "127.0.0.1",
+      port: input.port,
+      pid: process.pid,
+      project_dir: input.projectDir,
+      display_name: "claude-cli-channel",
+      started_at: now,
+      last_seen_at: now,
+    }, null, 2)}\n`,
+    "utf8",
+  );
+}
+
+async function runCli(args: string[], options: {
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+}): Promise<{ code: number | null; stdout: string; stderr: string }> {
+  const child = spawn(process.execPath, [path.join(options.cwd, "dist/cli.js"), ...args], {
+    cwd: options.cwd,
+    env: options.env,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+  let stdout = "";
+  let stderr = "";
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk: string) => {
+    stdout += chunk;
+  });
+  child.stderr.on("data", (chunk: string) => {
+    stderr += chunk;
+  });
+
+  const timeout = setTimeout(() => {
+    child.kill("SIGKILL");
+  }, 5_000);
+
+  try {
+    const code = await new Promise<number | null>((resolve, reject) => {
+      child.once("error", reject);
+      child.once("close", resolve);
+    });
+    return { code, stdout, stderr };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function listen(server: http.Server): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+}
+
+async function closeServer(server: http.Server): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error && !isServerNotRunningError(error)) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function isServerNotRunningError(error: Error): boolean {
+  return "code" in error && error.code === "ERR_SERVER_NOT_RUNNING";
+}
