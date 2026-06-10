@@ -16,6 +16,7 @@
     "dist",
     ".claude-plugin",
     ".codex-plugin",
+    "assets",
     ".mcp.json",
     ".mcp.example.json",
     "skills",
