@@ -6,7 +6,7 @@ Claude Code stays in its normal terminal session. Codex stays in its normal envi
 
 This is an early preview for local development and research-preview Claude Code Channels. Claude Code Channels require compatible Claude Code support and explicit channel enablement. See the official [Claude Channels reference](https://code.claude.com/docs/en/channels-reference).
 
-## Install
+## Install the sender CLI
 
 Install the sender CLI from npm:
 
@@ -16,13 +16,39 @@ npm install -g claude-channel-cli
 
 This makes `claude-channel` available on your `PATH`.
 
-For Claude Code channel setup, point `CLAUDE_CHANNEL_CLI_DIR` at the installed package:
+## Start Claude Code
 
-```sh
-export CLAUDE_CHANNEL_CLI_DIR="$(npm root -g)/claude-channel-cli"
+Claude Code still has to start the receiver-side channel. Use the Claude plugin path for normal installs and the bare MCP path for local development.
+
+### Claude plugin install
+
+Once this package is published to a Claude plugin marketplace, install it from inside Claude Code:
+
+```text
+/plugin install claude-channel-cli@<marketplace>
+/reload-plugins
 ```
 
-For local development from a source checkout:
+Then exit Claude Code and restart it from the project that should receive messages:
+
+```sh
+cd /path/to/receiver-project
+claude --dangerously-load-development-channels plugin:claude-channel-cli@<marketplace>
+```
+
+The plugin install path uses `.claude-plugin/plugin.json`, including its `mcpServers` and `channels` entries. It does not require a receiver-project `.mcp.json` or `--mcp-config`.
+
+During the Claude Channels research preview, custom channel plugins must use the development flag unless they are on the effective channel allowlist. After allowlist approval, the startup command becomes:
+
+```sh
+claude --channels plugin:claude-channel-cli@<marketplace>
+```
+
+Marketplace packaging is intentionally omitted until the package source, marketplace name, and release policy are finalized.
+
+### Development install
+
+For local development from a source checkout, build and link the package:
 
 ```sh
 git clone https://github.com/aaronn/claude-channel-cli.git
@@ -35,8 +61,6 @@ export CLAUDE_CHANNEL_CLI_DIR="$PWD"
 
 `npm link` makes the checkout's `claude-channel` binary available on your `PATH`.
 
-## Start Claude Code
-
 The Claude plugin manifest lives at `.claude-plugin/plugin.json`. For local development, first validate that packaging:
 
 ```sh
@@ -47,7 +71,7 @@ claude --plugin-dir .
 
 `--plugin-dir` checks plugin loading. The bare-MCP development flow is still the most explicit end-to-end channel smoke test.
 
-Start Claude Code from the project that should receive messages:
+For a bare MCP smoke test, point Claude Code at this checkout's example MCP config and enable that server as a development channel:
 
 ```sh
 cd /path/to/receiver-project
@@ -66,8 +90,6 @@ claude \
 ```
 
 For persistent local development setup, copy the `.mcp.example.json` server entry into the receiver project's `.mcp.json`.
-
-Marketplace packaging is intentionally omitted until the package source, marketplace name, and release policy are finalized.
 
 ## Use the CLI
 
