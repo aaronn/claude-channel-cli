@@ -18,7 +18,7 @@
   "interface": {
     "displayName": "Claude Channel",
     "shortDescription": "Use the local Claude channel from Codex",
-    "longDescription": "Provides @claude-channel-cli guidance and typed tools that mirror the claude-channel CLI for listing targets, checking status, sending messages, and asking a live Claude Code session for a response.",
+    "longDescription": "Provides @claude-channel guidance and typed tools that mirror the claude-channel CLI for listing targets, checking status, sending messages, and asking a live Claude Code session for a response.",
     "developerName": "Aaron",
     "category": "Developer Tools",
     "capabilities": [

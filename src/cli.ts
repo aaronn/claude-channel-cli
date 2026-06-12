@@ -12,6 +12,7 @@ import {
 } from "./cli/ask-output.js";
 import { readPromptInput } from "./cli/input.js";
 import { formatAmbiguousTargets, formatEndpointList } from "./cli/list-format.js";
+import { formatSetupCodexPluginResult, setupCodexPlugin } from "./cli/setup-codex-plugin.js";
 import { formatSetupMcpResult, setupMcp } from "./cli/setup-mcp.js";
 import { startWaitFeedback } from "./cli/wait-feedback.js";
 import { toEndpointCandidates } from "./registry/endpoint-record.js";
@@ -36,6 +37,11 @@ type ListOptions = {
 
 type SetupMcpCommandOptions = {
   scope?: string;
+  dryRun?: boolean;
+  force?: boolean;
+};
+
+type SetupCodexPluginCommandOptions = {
   dryRun?: boolean;
   force?: boolean;
 };
@@ -87,6 +93,10 @@ async function setupMcpCommand(options: SetupMcpCommandOptions): Promise<void> {
   process.stdout.write(formatSetupMcpResult(await setupMcp(options)));
 }
 
+async function setupCodexPluginCommand(options: SetupCodexPluginCommandOptions): Promise<void> {
+  process.stdout.write(formatSetupCodexPluginResult(await setupCodexPlugin(options)));
+}
+
 const program = new Command();
 
 program
@@ -127,6 +137,19 @@ program
   .action(async (options: SetupMcpCommandOptions) => {
     try {
       await setupMcpCommand(options);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+program
+  .command("setup-codex-plugin")
+  .description("Register the bundled Codex Desktop plugin in the personal marketplace.")
+  .option("--force", "Replace an existing claude-channel-cli symlink when safe.")
+  .option("--dry-run", "Print the Codex plugin setup changes without writing files.")
+  .action(async (options: SetupCodexPluginCommandOptions) => {
+    try {
+      await setupCodexPluginCommand(options);
     } catch (error) {
       fail(error);
     }
