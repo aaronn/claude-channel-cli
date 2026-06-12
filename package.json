@@ -24,7 +24,8 @@
     "LICENSE"
   ],
   "bin": {
-    "claude-channel": "dist/cli.js"
+    "claude-channel": "dist/cli.js",
+    "claude-channel-server": "dist/channel.js"
   },
   "scripts": {
     "clean": "rm -rf dist",

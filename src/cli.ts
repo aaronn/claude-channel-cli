@@ -12,6 +12,7 @@ import {
 } from "./cli/ask-output.js";
 import { readPromptInput } from "./cli/input.js";
 import { formatAmbiguousTargets, formatEndpointList } from "./cli/list-format.js";
+import { formatSetupMcpResult, setupMcp } from "./cli/setup-mcp.js";
 import { startWaitFeedback } from "./cli/wait-feedback.js";
 import { toEndpointCandidates } from "./registry/endpoint-record.js";
 import { listLiveEndpoints } from "./registry/endpoint-store.js";
@@ -31,6 +32,12 @@ type AskOptions = SendOptions & {
 
 type ListOptions = {
   json?: boolean;
+};
+
+type SetupMcpCommandOptions = {
+  scope?: string;
+  dryRun?: boolean;
+  force?: boolean;
 };
 
 async function list(options: ListOptions): Promise<void> {
@@ -76,6 +83,10 @@ async function ask(message: string, options: AskOptions): Promise<void> {
   }
 }
 
+async function setupMcpCommand(options: SetupMcpCommandOptions): Promise<void> {
+  process.stdout.write(formatSetupMcpResult(await setupMcp(options)));
+}
+
 const program = new Command();
 
 program
@@ -102,6 +113,20 @@ program
   .action(async (options: ListOptions) => {
     try {
       await list(options);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+program
+  .command("setup-mcp")
+  .description("Register the Claude channel MCP server with Claude Code.")
+  .option("--scope <scope>", "Claude MCP scope: local or user. Defaults to local.")
+  .option("--force", "Remove an existing claude-channel-cli MCP entry at that scope before adding it.")
+  .option("--dry-run", "Print the Claude MCP command that would be run without changing config.")
+  .action(async (options: SetupMcpCommandOptions) => {
+    try {
+      await setupMcpCommand(options);
     } catch (error) {
       fail(error);
     }
