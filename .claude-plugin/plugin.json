@@ -1,7 +1,7 @@
 {
   "name": "claude-channel-cli",
   "displayName": "Claude Channel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local channel for sending messages from Codex or a shell into a live Claude Code session.",
   "author": {
     "name": "Aaron"

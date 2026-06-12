@@ -1,6 +1,6 @@
 {
   "name": "claude-channel-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local Claude Code channel CLI for sending messages from Codex or a shell into a live Claude Code session.",
   "license": "MIT",
   "repository": {
