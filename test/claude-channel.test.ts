@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { callClaudeChannelTool } from "../src/mcp/claude-channel.js";
+import { callClaudeChannelTool, CLAUDE_CHANNEL_INSTRUCTIONS } from "../src/mcp/claude-channel.js";
 import { PendingRequests } from "../src/pending-requests.js";
 import { toolText } from "./helpers.js";
 
@@ -16,7 +16,7 @@ test("complete_channel_request resolves a pending request and preserves answer w
     answer: "\n  final answer\n",
   }, pending);
 
-  assert.equal(toolText(result), "Codex request completed.");
+  assert.equal(toolText(result), "Channel request completed.");
   assert.deepEqual(await promise, {
     requestId: "req_123",
     status: "answered",
@@ -33,7 +33,16 @@ test("complete_channel_request reports unknown request ids without resolving any
     answer: "missing",
   }, pending);
 
-  assert.equal(toolText(result), "No pending Codex request matched that request_id.");
+  assert.equal(toolText(result), "No pending channel request matched that request_id.");
+});
+
+test("channel instructions explain reply-required delivery through the completion tool", () => {
+  assert.match(CLAUDE_CHANNEL_INSTRUCTIONS, /reply_required="true"/);
+  assert.match(CLAUDE_CHANNEL_INSTRUCTIONS, /complete_channel_request/);
+  assert.match(CLAUDE_CHANNEL_INSTRUCTIONS, /request_id/);
+  assert.match(CLAUDE_CHANNEL_INSTRUCTIONS, /channel sender/);
+  assert.match(CLAUDE_CHANNEL_INSTRUCTIONS, /Text written only in the Claude Code conversation is not sent back/);
+  assert.doesNotMatch(CLAUDE_CHANNEL_INSTRUCTIONS, /Codex/);
 });
 
 test("complete_channel_request validates completion arguments", () => {

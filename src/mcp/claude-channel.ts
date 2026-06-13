@@ -20,6 +20,15 @@ export type ClaudeChannel = {
 
 const COMPLETE_TOOL_NAME = "complete_channel_request";
 
+export const CLAUDE_CHANNEL_INSTRUCTIONS = [
+  'Events from claude-channel-cli arrive as <channel source="claude-channel-cli" ...>.',
+  'Messages with reply_required="true" require a response back to the channel sender.',
+  `To send that response, call ${COMPLETE_TOOL_NAME} with the request_id attribute from the matching channel message.`,
+  "The answer argument is the response delivered to the channel sender.",
+  "Text written only in the Claude Code conversation is not sent back to the channel sender.",
+  'Use the completion tool only for the matching reply_required="true" channel request.',
+].join(" ");
+
 export function createClaudeChannel(pendingRequests: PendingRequests): ClaudeChannel {
   const server = new Server(
     { name: "claude-channel-cli", version: VERSION },
@@ -28,12 +37,7 @@ export function createClaudeChannel(pendingRequests: PendingRequests): ClaudeCha
         experimental: { "claude/channel": {} },
         tools: {},
       },
-      instructions: [
-        'Events from claude-channel-cli arrive as <channel source="claude-channel-cli" ...>.',
-        'Messages with reply_required="true" are synchronous requests from Codex.',
-        `When the work is complete, call ${COMPLETE_TOOL_NAME} with the request_id and final answer.`,
-        "Do not call the completion tool for unrelated manual user messages.",
-      ].join(" "),
+      instructions: CLAUDE_CHANNEL_INSTRUCTIONS,
     },
   );
 
@@ -41,22 +45,22 @@ export function createClaudeChannel(pendingRequests: PendingRequests): ClaudeCha
     tools: [
       {
         name: COMPLETE_TOOL_NAME,
-        description: "Complete a pending Codex request that arrived through the claude-channel-cli channel.",
+        description: "Send the final response for a reply-required channel request back to the channel sender.",
         inputSchema: {
           type: "object",
           properties: {
             request_id: {
               type: "string",
-              description: "The request_id attribute from the claude-channel-cli message.",
+              description: "The request_id attribute from the matching reply-required channel message.",
             },
             status: {
               type: "string",
               enum: [...ASK_STATUSES],
-              description: "Outcome of the request.",
+              description: "Outcome of the channel request.",
             },
             answer: {
               type: "string",
-              description: "Final answer to return to Codex.",
+              description: "Final response to deliver to the channel sender.",
             },
           },
           required: ["request_id", "status", "answer"],
@@ -102,7 +106,7 @@ export function callClaudeChannelTool(
     content: [
       {
         type: "text",
-        text: completed ? "Codex request completed." : "No pending Codex request matched that request_id.",
+        text: completed ? "Channel request completed." : "No pending channel request matched that request_id.",
       },
     ],
   };
