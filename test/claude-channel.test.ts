@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { callClaudeChannelTool, CLAUDE_CHANNEL_INSTRUCTIONS } from "../src/mcp/claude-channel.js";
+import {
+  callClaudeChannelTool,
+  CLAUDE_CHANNEL_INSTRUCTIONS,
+  createClaudeChannel,
+  formatReplyRequiredChannelContent,
+} from "../src/mcp/claude-channel.js";
 import { PendingRequests } from "../src/pending-requests.js";
 import { toolText } from "./helpers.js";
 
@@ -43,6 +48,44 @@ test("channel instructions explain reply-required delivery through the completio
   assert.match(CLAUDE_CHANNEL_INSTRUCTIONS, /channel sender/);
   assert.match(CLAUDE_CHANNEL_INSTRUCTIONS, /Text written only in the Claude Code conversation is not sent back/);
   assert.doesNotMatch(CLAUDE_CHANNEL_INSTRUCTIONS, /Codex/);
+});
+
+test("formatReplyRequiredChannelContent frames request content with completion instructions", () => {
+  const content = "\n  review this\n    keep indentation\n";
+  const framed = formatReplyRequiredChannelContent("req_abc123", content);
+
+  assert.match(framed, /^Channel Handling Instructions:/);
+  assert.match(framed, /request_id="req_abc123"/);
+  assert.match(framed, /complete_channel_request/);
+  assert.match(framed, /channel sender/);
+  assert.match(framed, /A normal Claude Code reply is not delivered/);
+  assert.match(framed, /Incoming Channel Request:\n/);
+  assert.doesNotMatch(framed, /Codex/);
+  assert.ok(framed.endsWith(content));
+});
+
+test("formatReplyRequiredChannelContent rejects invalid request ids", () => {
+  assert.throws(() => formatReplyRequiredChannelContent("bad", "question"), /invalid request_id/);
+});
+
+test("emitAsk frames reply-required content and preserves channel metadata", async () => {
+  const pending = new PendingRequests();
+  const channel = createClaudeChannel(pending);
+  const notifications: Array<Parameters<typeof channel.server.notification>[0]> = [];
+  channel.server.notification = async (notification) => {
+    notifications.push(notification);
+  };
+
+  await channel.emitAsk("req_abc123", "question", { sender: "tester" });
+
+  assert.equal(notifications.length, 1);
+  const notification = notifications[0];
+  assert.equal(notification?.method, "notifications/claude/channel");
+  const params = notification.params as { content: string; meta: Record<string, string> };
+  assert.equal(params.meta.request_id, "req_abc123");
+  assert.equal(params.meta.reply_required, "true");
+  assert.equal(params.meta.sender, "tester");
+  assert.equal(params.content, formatReplyRequiredChannelContent("req_abc123", "question"));
 });
 
 test("complete_channel_request validates completion arguments", () => {

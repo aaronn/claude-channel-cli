@@ -35,7 +35,6 @@ export function createTestClaudeChannel(
   overrides: Partial<ChannelEmitter> = {},
 ): ChannelEmitter {
   return {
-    emitTell: async () => {},
     emitAsk: async () => {},
     ...overrides,
   };
@@ -70,7 +69,6 @@ export function createCodexToolDeps(overrides: Partial<CodexChannelToolDeps> = {
         token_path: "token",
       },
     }),
-    tell: async () => ({ ok: true, target: testEndpoint.endpoint_id }),
     ask: async () => ({
       ok: true,
       target: testEndpoint.endpoint_id,

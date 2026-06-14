@@ -14,7 +14,6 @@ import { VERSION } from "../version.js";
 
 export type ClaudeChannel = {
   server: Server;
-  emitTell: (content: string, meta?: ChannelEventMeta) => Promise<void>;
   emitAsk: (requestId: string, content: string, meta?: ChannelEventMeta) => Promise<void>;
 };
 
@@ -28,6 +27,24 @@ export const CLAUDE_CHANNEL_INSTRUCTIONS = [
   "Text written only in the Claude Code conversation is not sent back to the channel sender.",
   'Use the completion tool only for the matching reply_required="true" channel request.',
 ].join(" ");
+
+export function formatReplyRequiredChannelContent(requestId: string, content: string): string {
+  if (!isRequestId(requestId)) {
+    throw new Error(`invalid request_id: ${requestId}`);
+  }
+
+  return [
+    "Channel Handling Instructions:",
+    `This is a reply-required channel request with request_id="${requestId}".`,
+    `The channel sender receives your response only if you call ${COMPLETE_TOOL_NAME} with request_id="${requestId}".`,
+    "Set answer to the response for the channel sender and choose the appropriate status.",
+    "A normal Claude Code reply is not delivered to the channel sender; it leaves the sender waiting until timeout.",
+    `Call ${COMPLETE_TOOL_NAME} before finishing this response.`,
+    "",
+    "Incoming Channel Request:",
+    content,
+  ].join("\n");
+}
 
 export function createClaudeChannel(pendingRequests: PendingRequests): ClaudeChannel {
   const server = new Server(
@@ -74,15 +91,12 @@ export function createClaudeChannel(pendingRequests: PendingRequests): ClaudeCha
 
   return {
     server,
-    emitTell: (content, meta = {}) => emitChannelEvent(server, content, {
-      ...meta,
-      reply_required: "false",
-    }),
-    emitAsk: (requestId, content, meta = {}) => emitChannelEvent(server, content, {
-      ...meta,
-      request_id: requestId,
-      reply_required: "true",
-    }),
+    emitAsk: (requestId, content, meta = {}) =>
+      emitChannelEvent(server, formatReplyRequiredChannelContent(requestId, content), {
+        ...meta,
+        request_id: requestId,
+        reply_required: "true",
+      }),
   };
 }
 
