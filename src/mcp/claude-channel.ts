@@ -30,6 +30,10 @@ export const CLAUDE_CHANNEL_INSTRUCTIONS = [
 ].join(" ");
 
 export function formatReplyRequiredChannelContent(requestId: string, content: string): string {
+  if (!isRequestId(requestId)) {
+    throw new Error(`invalid request_id: ${requestId}`);
+  }
+
   return [
     "Channel Handling Instructions:",
     `This is a reply-required channel request with request_id="${requestId}".`,

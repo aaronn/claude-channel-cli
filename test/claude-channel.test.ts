@@ -64,6 +64,10 @@ test("formatReplyRequiredChannelContent frames request content with completion i
   assert.ok(framed.endsWith(content));
 });
 
+test("formatReplyRequiredChannelContent rejects invalid request ids", () => {
+  assert.throws(() => formatReplyRequiredChannelContent("bad", "question"), /invalid request_id/);
+});
+
 test("emitAsk frames reply-required content and preserves channel metadata", async () => {
   const pending = new PendingRequests();
   const channel = createClaudeChannel(pending);
