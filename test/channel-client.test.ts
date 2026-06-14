@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { askClaude, askTransportTimeoutMs, tellClaude } from "../src/channel-client/client.js";
+import { askClaude, askTransportTimeoutMs } from "../src/channel-client/client.js";
 import { ASK_TRANSPORT_TIMEOUT_GRACE_MS } from "../src/config/defaults.js";
 import type { EndpointRecord } from "../src/registry/endpoint-record.js";
 
@@ -35,61 +35,16 @@ function requestUrl(input: Parameters<typeof fetch>[0]): string {
   return input.url;
 }
 
-test("tellClaude sends a plain-text request with auth and sender metadata", async () => {
+test("askClaude sends a plain-text request with auth, sender metadata, and timeout_ms", async () => {
   let request: { url: string; init?: RequestInit } | undefined;
 
-  const result = await tellClaude("\n  hello\n", {
-    endpoints: [endpoint],
-    token: "secret",
-    sender: "reviewer",
-    fetchFn: async (url, init) => {
-      request = { url: requestUrl(url), init };
-      return jsonResponse({ ok: true }, 202);
-    },
-  });
-
-  assert.deepEqual(result, { ok: true, target: endpoint.endpoint_id });
-  assert.equal(request?.url, "http://[::1]:8788/tell");
-  assert.equal(request?.init?.method, "POST");
-  assert.equal(request?.init?.body, "\n  hello\n");
-  assert.deepEqual(requestHeaders(request?.init), {
-    authorization: "Bearer secret",
-    "content-type": "text/plain; charset=utf-8",
-    "x-claude-channel-sender": "reviewer",
-  });
-});
-
-test("tellClaude resolves sender metadata from environment or default", async () => {
-  const senders: string[] = [];
-  const fetchFn: typeof fetch = async (_url, init) => {
-    senders.push(requestHeaders(init)["x-claude-channel-sender"]);
-    return jsonResponse({ ok: true }, 202);
-  };
-
-  await tellClaude("hello", {
-    endpoints: [endpoint],
-    token: "secret",
-    env: { CLAUDE_CHANNEL_SENDER: "env-sender" },
-    fetchFn,
-  });
-  await tellClaude("hello", {
-    endpoints: [endpoint],
-    token: "secret",
-    env: {},
-    fetchFn,
-  });
-
-  assert.deepEqual(senders, ["env-sender", "codex"]);
-});
-
-test("askClaude sends timeout_ms and returns the validated response envelope", async () => {
   const result = await askClaude("question", {
     endpoints: [endpoint],
     token: "secret",
+    sender: "reviewer",
     timeoutMs: 42,
     fetchFn: async (url, init) => {
-      assert.equal(requestUrl(url), "http://[::1]:8788/ask?timeout_ms=42");
-      assert.equal(init?.body, "question");
+      request = { url: requestUrl(url), init };
       return jsonResponse({
         ok: true,
         request_id: "req_abc123",
@@ -106,6 +61,44 @@ test("askClaude sends timeout_ms and returns the validated response envelope", a
     status: "answered",
     answer: "done",
   });
+  assert.equal(request?.url, "http://[::1]:8788/ask?timeout_ms=42");
+  assert.equal(request?.init?.method, "POST");
+  assert.equal(request?.init?.body, "question");
+  assert.deepEqual(requestHeaders(request?.init), {
+    authorization: "Bearer secret",
+    "content-type": "text/plain; charset=utf-8",
+    "x-claude-channel-sender": "reviewer",
+  });
+});
+
+test("askClaude resolves sender metadata from environment or default", async () => {
+  const senders: string[] = [];
+  const fetchFn: typeof fetch = async (_url, init) => {
+    senders.push(requestHeaders(init)["x-claude-channel-sender"]);
+    return jsonResponse({
+      ok: true,
+      request_id: "req_abc123",
+      status: "answered",
+      answer: "done",
+    });
+  };
+
+  await askClaude("hello", {
+    endpoints: [endpoint],
+    token: "secret",
+    env: { CLAUDE_CHANNEL_SENDER: "env-sender" },
+    timeoutMs: 1,
+    fetchFn,
+  });
+  await askClaude("hello", {
+    endpoints: [endpoint],
+    token: "secret",
+    env: {},
+    timeoutMs: 1,
+    fetchFn,
+  });
+
+  assert.deepEqual(senders, ["env-sender", "codex"]);
 });
 
 test("askTransportTimeoutMs adds transport margin outside the app timeout", () => {
@@ -113,15 +106,6 @@ test("askTransportTimeoutMs adds transport margin outside the app timeout", () =
 });
 
 test("client response validation rejects malformed envelopes", async () => {
-  await assert.rejects(
-    tellClaude("hello", {
-      endpoints: [endpoint],
-      token: "secret",
-      fetchFn: async () => jsonResponse({ ok: false }),
-    }),
-    /expected shape/,
-  );
-
   await assert.rejects(
     askClaude("hello", {
       endpoints: [endpoint],
@@ -138,9 +122,10 @@ test("client response validation rejects malformed envelopes", async () => {
   );
 
   await assert.rejects(
-    tellClaude("hello", {
+    askClaude("hello", {
       endpoints: [endpoint],
       token: "secret",
+      timeoutMs: 1,
       fetchFn: async () => new Response("not json", { status: 200 }),
     }),
     /not valid JSON/,

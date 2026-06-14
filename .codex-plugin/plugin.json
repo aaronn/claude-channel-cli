@@ -1,6 +1,6 @@
 {
   "name": "claude-channel-cli",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Codex guidance and typed tools for using the local Claude Channel CLI.",
   "author": {
     "name": "Aaron"
@@ -18,7 +18,7 @@
   "interface": {
     "displayName": "Claude Channel",
     "shortDescription": "Use the local Claude channel from Codex",
-    "longDescription": "Provides @claude-channel guidance and typed tools that mirror the claude-channel CLI for listing targets, checking status, sending messages, and asking a live Claude Code session for a response.",
+    "longDescription": "Provides @claude-channel guidance and typed tools that mirror the claude-channel CLI for listing targets, checking status, and asking a live Claude Code session for a response.",
     "developerName": "Aaron",
     "category": "Developer Tools",
     "capabilities": [
@@ -28,7 +28,7 @@
     ],
     "defaultPrompt": [
       "Ask Claude Code to review this branch",
-      "Send context to my Claude Code session",
+      "Ask my Claude Code session for feedback",
       "Check whether the Claude channel is running"
     ],
     "brandColor": "#D97757",

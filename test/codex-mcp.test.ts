@@ -7,7 +7,7 @@ import { createCodexToolDeps, testCandidate, testEndpoint, toolText } from "./he
 test("listCodexChannelTools exposes the Codex-facing tool set", () => {
   assert.deepEqual(
     listCodexChannelTools().map((tool) => tool.name),
-    ["list_claude_targets", "status_claude_channel", "tell_claude", "ask_claude"],
+    ["list_claude_targets", "status_claude_channel", "ask_claude"],
   );
 });
 
@@ -23,25 +23,6 @@ test("status_claude_channel returns structured status", async () => {
 
   assert.equal(result.isError, false);
   assert.deepEqual(result.structuredContent?.health, { ok: true });
-});
-
-test("tell_claude passes message and sender to channel client", async () => {
-  const calls: Array<Parameters<CodexChannelToolDeps["tell"]>> = [];
-  const testDeps = createCodexToolDeps();
-  testDeps.tell = async (message, options) => {
-    calls.push([message, options]);
-    return { ok: true, target: testEndpoint.endpoint_id };
-  };
-
-  const result = await callCodexChannelTool("tell_claude", {
-    message: "From Codex: hello",
-    sender: "codex-test",
-  }, testDeps);
-
-  assert.equal(result.isError, false);
-  assert.deepEqual(calls, [
-    ["From Codex: hello", { target: undefined, sender: "codex-test" }],
-  ]);
 });
 
 test("ask_claude passes timeout and returns structured answer", async () => {
@@ -118,6 +99,13 @@ test("ask_claude defaults to 30 minute timeout", async () => {
   await callCodexChannelTool("ask_claude", { message: "From Codex: review" }, testDeps);
 
   assert.equal(timeoutMs, 1_800_000);
+});
+
+test("tell_claude is not exposed as a Codex-facing tool", async () => {
+  await assert.rejects(
+    callCodexChannelTool("tell_claude", { message: "From Codex: hello" }, createCodexToolDeps()),
+    /unknown tool: tell_claude/,
+  );
 });
 
 test("tool argument validation returns tool-visible errors", async () => {

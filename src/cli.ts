@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { askClaude, tellClaude } from "./channel-client/client.js";
+import { askClaude } from "./channel-client/client.js";
 import { readChannelStatus } from "./channel-client/status.js";
 import { TargetResolutionError } from "./channel-client/target-resolver.js";
 import { resolveAskTimeoutMs } from "./channel-client/timeout.js";
@@ -19,12 +19,12 @@ import { toEndpointCandidates } from "./registry/endpoint-record.js";
 import { listLiveEndpoints } from "./registry/endpoint-store.js";
 import { VERSION } from "./version.js";
 
-type SendOptions = {
+type ChannelTargetOptions = {
   sender?: string;
   to?: string;
 };
 
-type AskOptions = SendOptions & {
+type AskOptions = ChannelTargetOptions & {
   output?: string;
   timeout?: string;
   timeoutMs?: string;
@@ -54,19 +54,12 @@ async function list(options: ListOptions): Promise<void> {
   process.stdout.write(output);
 }
 
-async function status(options: SendOptions): Promise<void> {
+async function status(options: ChannelTargetOptions): Promise<void> {
   const result = await readChannelStatus({ target: options.to });
   process.stdout.write(
     JSON.stringify(result.report, null, 2) + "\n",
   );
   if (!result.ok) process.exitCode = 1;
-}
-
-async function tell(message: string, options: SendOptions): Promise<void> {
-  process.stdout.write(`${JSON.stringify(await tellClaude(message, {
-    target: options.to,
-    sender: options.sender,
-  }))}\n`);
 }
 
 async function ask(message: string, options: AskOptions): Promise<void> {
@@ -101,14 +94,14 @@ const program = new Command();
 
 program
   .name("claude-channel")
-  .description("Send messages into a live Claude Code session through a local CLI channel.")
+  .description("Ask a live Claude Code session through a local CLI channel.")
   .version(VERSION);
 
 program
   .command("status")
   .description("Print channel connection state and health.")
   .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
-  .action(async (options: SendOptions) => {
+  .action(async (options: ChannelTargetOptions) => {
     try {
       await status(options);
     } catch (error) {
@@ -156,38 +149,8 @@ program
   });
 
 program
-  .command("tell")
-  .alias("send")
-  .description("Send a one-way message into the running Claude Code session.")
-  .argument("<message...>", "Message text.")
-  .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
-  .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
-  .action(async (parts: string[], options: SendOptions) => {
-    try {
-      await tell(parts.join(" "), options);
-    } catch (error) {
-      fail(error);
-    }
-  });
-
-program
-  .command("tell-file")
-  .alias("send-file")
-  .description("Send a file's contents into the running Claude Code session.")
-  .argument("<file>", "File containing the message, or - for stdin.")
-  .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
-  .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
-  .action(async (file: string, options: SendOptions) => {
-    try {
-      await tell(await readPromptInput(file), options);
-    } catch (error) {
-      fail(error);
-    }
-  });
-
-program
   .command("ask")
-  .description("Send a request to Claude Code and wait for complete_channel_request.")
+  .description("Ask Claude Code and wait for complete_channel_request.")
   .argument("<message...>", "Message text.")
   .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")
@@ -205,7 +168,7 @@ program
 
 program
   .command("ask-file")
-  .description("Send a file's contents to Claude Code and wait for complete_channel_request.")
+  .description("Ask Claude Code with a file's contents and wait for complete_channel_request.")
   .argument("<file>", "File containing the request, or - for stdin.")
   .option("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
   .option("--sender <name>", "Sender metadata. Defaults to CLAUDE_CHANNEL_SENDER or codex.")

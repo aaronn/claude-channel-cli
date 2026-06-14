@@ -117,95 +117,13 @@ test("GET /health parses routes independently of configured host syntax", async 
   }
 });
 
-test("POST /tell rejects requests without the expected bearer token", async () => {
+test("POST /tell is not a supported route", async () => {
   const server = await startServer();
-  try {
-    const responses = await Promise.all([
-      post(server.baseUrl, "/tell", "hello", null),
-      post(server.baseUrl, "/tell", "hello", null, { authorization: "secret" }),
-      post(server.baseUrl, "/tell", "hello", "wrong"),
-    ]);
-
-    for (const response of responses) {
-      assert.equal(response.status, 401);
-      assert.equal(await response.text(), "unauthorized\n");
-    }
-  } finally {
-    await server.close();
-  }
-});
-
-test("POST /tell emits a channel event", async () => {
-  const tells: string[] = [];
-  const server = await startServer({
-    channel: createTestClaudeChannel({
-      emitTell: async (content) => {
-        tells.push(content);
-      },
-    }),
-  });
-
   try {
     const response = await post(server.baseUrl, "/tell", "hello");
 
-    assert.equal(response.status, 202);
-    assert.deepEqual(await responseJsonObject(response), { ok: true });
-    assert.deepEqual(tells, ["hello"]);
-  } finally {
-    await server.close();
-  }
-});
-
-test("POST /tell preserves prompt whitespace for text and JSON bodies", async () => {
-  const tells: string[] = [];
-  const prompt = "\n  line one\n    line two\n";
-  const server = await startServer({
-    channel: createTestClaudeChannel({
-      emitTell: async (content) => {
-        tells.push(content);
-      },
-    }),
-  });
-
-  try {
-    const textResponse = await post(server.baseUrl, "/tell", prompt);
-    const jsonResponse = await post(
-      server.baseUrl,
-      "/tell",
-      JSON.stringify({ message: prompt }),
-      "secret",
-      { "content-type": "application/json; charset=utf-8" },
-    );
-
-    assert.equal(textResponse.status, 202);
-    assert.equal(jsonResponse.status, 202);
-    assert.deepEqual(tells, [prompt, prompt]);
-  } finally {
-    await server.close();
-  }
-});
-
-test("POST /tell validates sender metadata at ingress", async () => {
-  const senders: Array<string | undefined> = [];
-  const server = await startServer({
-    channel: createTestClaudeChannel({
-      emitTell: async (_content, meta) => {
-        senders.push(meta?.sender);
-      },
-    }),
-  });
-
-  try {
-    const valid = await post(server.baseUrl, "/tell", "hello", "secret", {
-      "x-claude-channel-sender": "codex-review",
-    });
-    const invalid = await post(server.baseUrl, "/tell", "hello", "secret", {
-      "x-claude-channel-sender": 'bad"sender',
-    });
-
-    assert.equal(valid.status, 202);
-    assert.equal(invalid.status, 202);
-    assert.deepEqual(senders, ["codex-review", "codex"]);
+    assert.equal(response.status, 404);
+    assert.equal(await response.text(), "not found\n");
   } finally {
     await server.close();
   }
@@ -224,6 +142,57 @@ test("POST /ask waits for matching completion", async () => {
     assert.match(stringField(body, "request_id"), /^req_/);
     assert.equal(body.status, "answered");
     assert.equal(body.answer, "ok");
+  } finally {
+    await server.close();
+  }
+});
+
+test("POST /ask rejects requests without the expected bearer token", async () => {
+  const server = await startServer();
+  try {
+    const responses = await Promise.all([
+      post(server.baseUrl, "/ask", "hello", null),
+      post(server.baseUrl, "/ask", "hello", null, { authorization: "secret" }),
+      post(server.baseUrl, "/ask", "hello", "wrong"),
+    ]);
+
+    for (const response of responses) {
+      assert.equal(response.status, 401);
+      assert.equal(await response.text(), "unauthorized\n");
+    }
+  } finally {
+    await server.close();
+  }
+});
+
+test("POST /ask validates sender metadata at ingress", async () => {
+  const senders: Array<string | undefined> = [];
+  const pendingRequests = new PendingRequests();
+  const server = await startServer({
+    pendingRequests,
+    channel: createTestClaudeChannel({
+      emitAsk: async (requestId, _content, meta) => {
+        senders.push(meta?.sender);
+        pendingRequests.complete({
+          requestId,
+          status: "answered",
+          answer: "ok",
+        });
+      },
+    }),
+  });
+
+  try {
+    const valid = await post(server.baseUrl, "/ask", "hello", "secret", {
+      "x-claude-channel-sender": "codex-review",
+    });
+    const invalid = await post(server.baseUrl, "/ask", "hello", "secret", {
+      "x-claude-channel-sender": 'bad"sender',
+    });
+
+    assert.equal(valid.status, 200);
+    assert.equal(invalid.status, 200);
+    assert.deepEqual(senders, ["codex-review", "codex"]);
   } finally {
     await server.close();
   }
@@ -252,6 +221,93 @@ test("POST /ask preserves prompt whitespace", async () => {
 
     assert.equal(response.status, 200);
     assert.deepEqual(asks, [prompt]);
+  } finally {
+    await server.close();
+  }
+});
+
+test("POST /ask extracts message content from JSON bodies", async () => {
+  const asks: string[] = [];
+  const prompt = "\n  line one\n    line two\n";
+  const pendingRequests = new PendingRequests();
+  const server = await startServer({
+    pendingRequests,
+    channel: createTestClaudeChannel({
+      emitAsk: async (requestId, content) => {
+        asks.push(content);
+        pendingRequests.complete({
+          requestId,
+          status: "answered",
+          answer: "ok",
+        });
+      },
+    }),
+  });
+
+  try {
+    const response = await post(
+      server.baseUrl,
+      "/ask",
+      JSON.stringify({ message: prompt }),
+      "secret",
+      { "content-type": "application/json; charset=utf-8" },
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(asks, [prompt]);
+  } finally {
+    await server.close();
+  }
+});
+
+test("POST /ask returns 400 for malformed JSON", async () => {
+  const server = await startServer();
+  try {
+    const response = await fetch(`${server.baseUrl}/ask`, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer secret",
+        "content-type": "application/json",
+      },
+      body: "{",
+    });
+
+    assert.equal(response.status, 400);
+    const body = await responseJsonObject(response);
+    assert.equal(body.error, "invalid JSON request body");
+  } finally {
+    await server.close();
+  }
+});
+
+test("POST /ask returns 400 for JSON without message", async () => {
+  const server = await startServer();
+  try {
+    const response = await fetch(`${server.baseUrl}/ask`, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer secret",
+        "content-type": "application/json",
+      },
+      body: "{}",
+    });
+
+    assert.equal(response.status, 400);
+    const body = await responseJsonObject(response);
+    assert.equal(body.error, 'JSON requests must include a string "message" field');
+  } finally {
+    await server.close();
+  }
+});
+
+test("POST /ask returns 413 for oversized bodies", async () => {
+  const server = await startServer({ maxBodyBytes: 3 });
+  try {
+    const response = await post(server.baseUrl, "/ask", "large");
+
+    assert.equal(response.status, 413);
+    const body = await responseJsonObject(response);
+    assert.match(stringField(body, "error"), /request body exceeds 3 bytes/);
   } finally {
     await server.close();
   }
@@ -348,46 +404,6 @@ test("POST /ask returns generic 500 when emitting the channel request fails", as
   }
 });
 
-test("POST /tell returns 400 for malformed JSON", async () => {
-  const server = await startServer();
-  try {
-    const response = await fetch(`${server.baseUrl}/tell`, {
-      method: "POST",
-      headers: {
-        authorization: "Bearer secret",
-        "content-type": "application/json",
-      },
-      body: "{",
-    });
-
-    assert.equal(response.status, 400);
-    const body = await responseJsonObject(response);
-    assert.equal(body.error, "invalid JSON request body");
-  } finally {
-    await server.close();
-  }
-});
-
-test("POST /tell returns 400 for JSON without message", async () => {
-  const server = await startServer();
-  try {
-    const response = await fetch(`${server.baseUrl}/tell`, {
-      method: "POST",
-      headers: {
-        authorization: "Bearer secret",
-        "content-type": "application/json",
-      },
-      body: "{}",
-    });
-
-    assert.equal(response.status, 400);
-    const body = await responseJsonObject(response);
-    assert.equal(body.error, 'JSON requests must include a string "message" field');
-  } finally {
-    await server.close();
-  }
-});
-
 test("POST /ask returns 400 for invalid timeout_ms", async () => {
   const server = await startServer();
   try {
@@ -396,19 +412,6 @@ test("POST /ask returns 400 for invalid timeout_ms", async () => {
     assert.equal(response.status, 400);
     const body = await responseJsonObject(response);
     assert.equal(body.error, "timeout_ms must be a positive integer");
-  } finally {
-    await server.close();
-  }
-});
-
-test("POST /tell returns 413 for oversized bodies", async () => {
-  const server = await startServer({ maxBodyBytes: 3 });
-  try {
-    const response = await post(server.baseUrl, "/tell", "large");
-
-    assert.equal(response.status, 413);
-    const body = await responseJsonObject(response);
-    assert.match(stringField(body, "error"), /request body exceeds 3 bytes/);
   } finally {
     await server.close();
   }

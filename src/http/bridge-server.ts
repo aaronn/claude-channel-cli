@@ -7,7 +7,6 @@ import { parsePositiveIntegerString } from "../validation.js";
 import { messageFromBody, readBody } from "./body.js";
 
 export type ChannelEmitter = {
-  emitTell: (content: string, meta?: ChannelEventMeta) => Promise<void>;
   emitAsk: (requestId: string, content: string, meta?: ChannelEventMeta) => Promise<void>;
 };
 
@@ -39,11 +38,6 @@ async function handleHttpRequest(
       return;
     }
 
-    if (req.method === "POST" && url.pathname === "/tell") {
-      await handleTell(req, res, options);
-      return;
-    }
-
     if (req.method === "POST" && url.pathname === "/ask") {
       await handleAsk(req, res, url, options);
       return;
@@ -58,24 +52,6 @@ async function handleHttpRequest(
       sendJson(res, status, { ok: false, error: message });
     }
   }
-}
-
-async function handleTell(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  options: BridgeHttpServerOptions,
-): Promise<void> {
-  if (!isAuthorized(req, options.token)) {
-    sendText(res, 401, "unauthorized\n");
-    return;
-  }
-
-  const content = await readMessage(req, options.maxBodyBytes);
-  await options.channel.emitTell(content, {
-    sender: normalizeChannelSender(req.headers["x-claude-channel-sender"]),
-  });
-
-  sendJson(res, 202, { ok: true });
 }
 
 async function handleAsk(

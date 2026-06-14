@@ -18,7 +18,7 @@ type ReceivedRequest = {
 
 const CLI_TIMEOUT_MS = 5_000;
 
-test("built CLI sends a tell request through the local channel registry", async () => {
+test("built CLI sends an ask request through the local channel registry", async () => {
   const repoDir = process.cwd();
   const tempHome = await mkdtemp(path.join(tmpdir(), "claude-channel-cli-smoke-"));
   let received: ReceivedRequest | undefined;
@@ -38,8 +38,13 @@ test("built CLI sends a tell request through the local channel registry", async 
         body: Buffer.concat(chunks).toString("utf8"),
       };
 
-      res.writeHead(202, { "content-type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ ok: true }));
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({
+        ok: true,
+        request_id: "req_smoke123",
+        status: "answered",
+        answer: "smoke answer",
+      }));
     });
   });
 
@@ -56,9 +61,10 @@ test("built CLI sends a tell request through the local channel registry", async 
     });
 
     const result = await runCli([
-      "tell",
+      "ask",
       "--sender",
       "smoke-test",
+      "--no-progress",
       "From",
       "smoke:",
       "hello",
@@ -74,10 +80,10 @@ test("built CLI sends a tell request through the local channel registry", async 
 
     assert.equal(result.code, 0);
     assert.equal(result.stderr, "");
-    assert.deepEqual(JSON.parse(result.stdout) as unknown, { ok: true, target: "ep_ABC234" });
+    assert.equal(result.stdout, "smoke answer\n");
     assert.deepEqual(received, {
       method: "POST",
-      url: "/tell",
+      url: "/ask?timeout_ms=1800000",
       authorization: "Bearer smoke-token",
       sender: "smoke-test",
       contentType: "text/plain; charset=utf-8",

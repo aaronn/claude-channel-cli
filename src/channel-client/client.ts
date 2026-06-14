@@ -16,26 +16,15 @@ type ChannelMessageOptions = TargetResolutionOptions & {
   fetchFn?: typeof fetch;
 };
 
-export type TellResponse = {
-  ok: true;
-  target: string;
-};
-
 export type TargetedAskResponse = AskResponse & {
   target: string;
 };
-
-export async function tellClaude(message: string, options: ChannelMessageOptions = {}): Promise<TellResponse> {
-  const { response, endpoint } = await postChannelMessage("/tell", message, options);
-  const body = validateTellResponse(await readJsonResponse(response, "tell"), "tell");
-  return { ...body, target: endpoint.endpoint_id };
-}
 
 export async function askClaude(
   message: string,
   options: ChannelMessageOptions & { timeoutMs: number },
 ): Promise<TargetedAskResponse> {
-  const { response, endpoint } = await postChannelMessage("/ask", message, {
+  const { response, endpoint } = await postAskMessage(message, {
     ...options,
     searchParams: new URLSearchParams({ timeout_ms: String(options.timeoutMs) }),
     transportTimeoutMs: askTransportTimeoutMs(options.timeoutMs),
@@ -48,8 +37,7 @@ export function askTransportTimeoutMs(timeoutMs: number): number {
   return timeoutMs + ASK_TRANSPORT_TIMEOUT_GRACE_MS;
 }
 
-async function postChannelMessage(
-  path: "/tell" | "/ask",
+async function postAskMessage(
   message: string,
   options: ChannelMessageOptions,
 ): Promise<{ response: Response; endpoint: EndpointRecord }> {
@@ -58,7 +46,7 @@ async function postChannelMessage(
   const sender = resolveSender(options.sender, options.env);
   const search = options.searchParams ? `?${options.searchParams.toString()}` : "";
 
-  const url = formatChannelUrl(endpoint, `${path}${search}`);
+  const url = formatChannelUrl(endpoint, `/ask${search}`);
   const init: RequestInit = {
     method: "POST",
     headers: {
@@ -110,12 +98,6 @@ async function readJsonResponse(response: Response, action: string): Promise<unk
   } catch {
     throw new Error(`${action} failed: response was not valid JSON`);
   }
-}
-
-function validateTellResponse(value: unknown, action: string): Omit<TellResponse, "target"> {
-  const record = readResponseRecord(value, action);
-  if (record.ok !== true) throw new Error(`${action} failed: response JSON did not match expected shape`);
-  return { ok: true };
 }
 
 function validateAskResponse(value: unknown, action: string): AskResponse {
