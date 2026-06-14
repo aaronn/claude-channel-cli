@@ -1,0 +1,48 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: npm publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Verify tag matches package version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Tag v$TAG_VERSION does not match package version $PACKAGE_VERSION."
+            exit 1
+          fi
+
+      - name: Verify tag commit is on main
+        run: |
+          git fetch origin main
+          TAG_COMMIT="$(git rev-parse "$GITHUB_REF_NAME^{commit}")"
+          git merge-base --is-ancestor "$TAG_COMMIT" origin/main
+
+      - run: npm ci
+      - run: npm run check
+      - run: npm audit --audit-level=moderate
+      - run: npm pack --dry-run
+      - run: npm publish

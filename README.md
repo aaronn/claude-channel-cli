@@ -166,3 +166,27 @@ npm run check:local
 ```
 
 `npm run check` runs version alignment, linting, TypeScript checks, and tests. `npm run check:local` also runs `npm audit`, Claude plugin validation, and a package dry-run.
+
+
+## Release
+
+Publishing is automated by `.github/workflows/publish.yml` when a `vX.Y.Z` tag is pushed. Before the first automated publish, configure npm Trusted Publishing for the package:
+
+- Provider: GitHub Actions
+- Organization or user: `aaronn`
+- Repository: `claude-channel-cli`
+- Workflow filename: `publish.yml`
+- Allowed action: `npm publish`
+- Environment: blank
+
+The workflow verifies that the tag version matches `package.json`, that the tagged commit is on `main`, and that checks, audit, and package dry-run pass before publishing.
+
+After merging a release-ready version bump to `main`, publish the matching tag:
+
+```sh
+git switch main
+git pull --ff-only
+VERSION="$(node -p "require('./package.json').version")"
+git tag "v$VERSION"
+git push origin "v$VERSION"
+```
