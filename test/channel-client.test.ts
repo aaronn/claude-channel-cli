@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { askClaude, askTransportTimeoutMs } from "../src/channel-client/client.js";
+import { askClaude, askTransportTimeoutMs, renameClaudeDisplayName } from "../src/channel-client/client.js";
 import { ASK_TRANSPORT_TIMEOUT_GRACE_MS } from "../src/config/defaults.js";
 import type { EndpointRecord } from "../src/registry/endpoint-record.js";
 
@@ -105,6 +105,37 @@ test("askTransportTimeoutMs adds transport margin outside the app timeout", () =
   assert.equal(askTransportTimeoutMs(1_800_000), 1_800_000 + ASK_TRANSPORT_TIMEOUT_GRACE_MS);
 });
 
+test("renameClaudeDisplayName sends an authenticated JSON PATCH", async () => {
+  let request: { url: string; init?: RequestInit } | undefined;
+
+  const result = await renameClaudeDisplayName("  review-left  ", {
+    endpoints: [endpoint],
+    token: "secret",
+    fetchFn: async (url, init) => {
+      request = { url: requestUrl(url), init };
+      return jsonResponse({
+        ok: true,
+        endpoint_id: endpoint.endpoint_id,
+        display_name: "review-left",
+      });
+    },
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    target: endpoint.endpoint_id,
+    endpoint_id: endpoint.endpoint_id,
+    display_name: "review-left",
+  });
+  assert.equal(request?.url, "http://[::1]:8788/display-name");
+  assert.equal(request?.init?.method, "PATCH");
+  assert.equal(request?.init?.body, JSON.stringify({ display_name: "review-left" }));
+  assert.deepEqual(requestHeaders(request?.init), {
+    authorization: "Bearer secret",
+    "content-type": "application/json; charset=utf-8",
+  });
+});
+
 test("client response validation rejects malformed envelopes", async () => {
   await assert.rejects(
     askClaude("hello", {
@@ -129,5 +160,18 @@ test("client response validation rejects malformed envelopes", async () => {
       fetchFn: async () => new Response("not json", { status: 200 }),
     }),
     /not valid JSON/,
+  );
+
+  await assert.rejects(
+    renameClaudeDisplayName("review-left", {
+      endpoints: [endpoint],
+      token: "secret",
+      fetchFn: async () => jsonResponse({
+        ok: true,
+        endpoint_id: "ep_DEF567",
+        display_name: "review-left",
+      }),
+    }),
+    /expected shape/,
   );
 });

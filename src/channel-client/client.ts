@@ -6,6 +6,8 @@ import { readRecordObject } from "../validation.js";
 import { formatChannelUrl } from "../registry/endpoint-url.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
 import { ASK_TRANSPORT_TIMEOUT_GRACE_MS } from "../config/defaults.js";
+import { isEndpointId } from "../registry/endpoint-id.js";
+import { normalizeEndpointDisplayName } from "../registry/display-name.js";
 
 type ChannelMessageOptions = TargetResolutionOptions & {
   sender?: string;
@@ -20,6 +22,13 @@ export type TargetedAskResponse = AskResponse & {
   target: string;
 };
 
+export type RenameDisplayNameResponse = {
+  ok: true;
+  target: string;
+  endpoint_id: string;
+  display_name: string;
+};
+
 export async function askClaude(
   message: string,
   options: ChannelMessageOptions & { timeoutMs: number },
@@ -30,6 +39,32 @@ export async function askClaude(
     transportTimeoutMs: askTransportTimeoutMs(options.timeoutMs),
   });
   const body = validateAskResponse(await readJsonResponse(response, "ask"), "ask");
+  return { ...body, target: endpoint.endpoint_id };
+}
+
+export async function renameClaudeDisplayName(
+  displayName: string,
+  options: TargetResolutionOptions & {
+    token?: string;
+    fetchFn?: typeof fetch;
+  } = {},
+): Promise<RenameDisplayNameResponse> {
+  const normalizedDisplayName = normalizeEndpointDisplayName(displayName);
+  const { endpoint } = await resolveClaudeTarget(options);
+  const token = options.token ?? await readToken();
+  const response = await (options.fetchFn ?? fetch)(formatChannelUrl(endpoint, "/display-name"), {
+    method: "PATCH",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json; charset=utf-8",
+    },
+    body: JSON.stringify({ display_name: normalizedDisplayName }),
+  });
+  const body = validateRenameDisplayNameResponse(
+    await readJsonResponse(response, "rename"),
+    endpoint,
+    "rename",
+  );
   return { ...body, target: endpoint.endpoint_id };
 }
 
@@ -121,6 +156,32 @@ function validateAskResponse(value: unknown, action: string): AskResponse {
     request_id: requestId,
     status,
     answer,
+  };
+}
+
+function validateRenameDisplayNameResponse(
+  value: unknown,
+  endpoint: EndpointRecord,
+  action: string,
+): Omit<RenameDisplayNameResponse, "target"> {
+  const record = readResponseRecord(value, action);
+  const endpointId = record.endpoint_id;
+  const displayName = record.display_name;
+
+  if (
+    record.ok !== true ||
+    typeof endpointId !== "string" ||
+    !isEndpointId(endpointId) ||
+    endpointId !== endpoint.endpoint_id ||
+    typeof displayName !== "string"
+  ) {
+    throw new Error(`${action} failed: response JSON did not match expected shape`);
+  }
+
+  return {
+    ok: true,
+    endpoint_id: endpointId,
+    display_name: normalizeEndpointDisplayName(displayName),
   };
 }
 

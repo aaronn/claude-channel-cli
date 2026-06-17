@@ -72,6 +72,13 @@ claude-channel ask --timeout 45m "From Codex: take up to 45 minutes to review th
 CLAUDE_CHANNEL_ASK_TIMEOUT_MS=2700000 claude-channel ask "From Codex: review this."
 ```
 
+When multiple Claude Code sessions are running, give a session a human-friendly name:
+
+```sh
+claude-channel rename --to 1 review-left
+claude-channel ask --to review-left "From Codex: review this diff."
+```
+
 
 ## Use the Codex Desktop Plugin
 
@@ -110,6 +117,21 @@ CLAUDE_CHANNEL_TARGET=ep_ABC234 claude-channel status
 ```
 
 `--to` accepts an endpoint id, a unique display name, a project path, or a numeric index from `claude-channel list`.
+
+Use `rename` to make same-project sessions easy to target:
+
+```sh
+claude-channel rename --to ep_ABC234 review-left
+claude-channel ask --to review-left "From Codex: review this branch."
+```
+
+Duplicate display names are allowed but remain ambiguous; use an endpoint id from `claude-channel list` if a name matches more than one live session.
+
+For scripted launches, set the startup display name before starting Claude Code:
+
+```sh
+CLAUDE_CHANNEL_DISPLAY_NAME=review-left claude --dangerously-load-development-channels server:claude-channel-cli
+```
 
 
 ## Security

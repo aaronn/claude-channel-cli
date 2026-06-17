@@ -1,6 +1,6 @@
 {
   "name": "claude-channel-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Local Claude Code channel CLI for asking a live Claude Code session and receiving replies.",
   "license": "MIT",
   "repository": {

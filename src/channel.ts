@@ -9,14 +9,16 @@ import { createClaudeChannel } from "./mcp/claude-channel.js";
 import { PendingRequests } from "./pending-requests.js";
 import type { EndpointRecord } from "./registry/endpoint-record.js";
 import { formatEndpointBaseUrl } from "./registry/endpoint-url.js";
-import { createUniqueEndpointRecord, refreshEndpoint, removeEndpointRecord } from "./registry/endpoint-store.js";
+import { createUniqueEndpointRecord, refreshEndpoint, removeEndpointRecord, renameEndpoint } from "./registry/endpoint-store.js";
 
 const config = readChannelRuntimeConfig();
 const pendingRequests = new PendingRequests();
 const channel = createClaudeChannel(pendingRequests);
 const projectDir = path.resolve(process.env.CLAUDE_CHANNEL_PROJECT_DIR ?? process.cwd());
+const displayName = process.env.CLAUDE_CHANNEL_DISPLAY_NAME;
 let endpointRecord: EndpointRecord | undefined;
 let refreshTimer: NodeJS.Timeout | undefined;
+let endpointWriteQueue = Promise.resolve();
 
 const token = await readOrCreateToken();
 const httpServer = createBridgeHttpServer({
@@ -25,6 +27,9 @@ const httpServer = createBridgeHttpServer({
   maxBodyBytes: config.maxBodyBytes,
   defaultAskTimeoutMs: config.defaultAskTimeoutMs,
   channel,
+  endpoint: {
+    renameDisplayName,
+  },
   pendingRequests,
 });
 
@@ -45,6 +50,7 @@ async function registerEndpoint(port: number): Promise<void> {
     port,
     pid: process.pid,
     projectDir,
+    displayName,
   });
 
   refreshTimer = setInterval(() => {
@@ -58,12 +64,34 @@ async function registerEndpoint(port: number): Promise<void> {
 }
 
 async function refreshCurrentEndpoint(): Promise<void> {
-  if (!endpointRecord) return;
   try {
-    endpointRecord = await refreshEndpoint(endpointRecord);
+    await updateEndpointRecord(async (record) => refreshEndpoint(record));
   } catch (error) {
-    console.error(`claude-channel-cli failed to refresh endpoint ${endpointRecord.endpoint_id}: ${errorMessage(error)}`);
+    const endpointId = endpointRecord?.endpoint_id ?? "unknown";
+    console.error(`claude-channel-cli failed to refresh endpoint ${endpointId}: ${errorMessage(error)}`);
   }
+}
+
+async function renameDisplayName(displayName: string): Promise<{ endpoint_id: string; display_name: string }> {
+  const renamed = await updateEndpointRecord(async (record) => renameEndpoint(record, displayName));
+  return {
+    endpoint_id: renamed.endpoint_id,
+    display_name: renamed.display_name,
+  };
+}
+
+async function updateEndpointRecord(
+  operation: (record: EndpointRecord) => Promise<EndpointRecord>,
+): Promise<EndpointRecord> {
+  const update = endpointWriteQueue.then(async () => {
+    if (!endpointRecord) {
+      throw new Error("Claude channel endpoint is not registered yet");
+    }
+    endpointRecord = await operation(endpointRecord);
+    return endpointRecord;
+  });
+  endpointWriteQueue = update.then(() => undefined, () => undefined);
+  return update;
 }
 
 async function shutdown(): Promise<void> {

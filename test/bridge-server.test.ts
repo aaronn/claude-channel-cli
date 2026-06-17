@@ -75,6 +75,27 @@ async function post(
   });
 }
 
+async function patchDisplayName(
+  baseUrl: string,
+  body: string,
+  token: string | null = "secret",
+  headers: Record<string, string> = {},
+): Promise<Response> {
+  const requestHeaders: Record<string, string> = {
+    "content-type": "application/json; charset=utf-8",
+    ...headers,
+  };
+  if (token !== null) {
+    requestHeaders.authorization ??= `Bearer ${token}`;
+  }
+
+  return fetch(`${baseUrl}/display-name`, {
+    method: "PATCH",
+    headers: requestHeaders,
+    body,
+  });
+}
+
 async function responseJsonObject(response: Response): Promise<Record<string, unknown>> {
   const body = (await response.json()) as unknown;
   assert.equal(typeof body, "object");
@@ -124,6 +145,111 @@ test("POST /tell is not a supported route", async () => {
 
     assert.equal(response.status, 404);
     assert.equal(await response.text(), "not found\n");
+  } finally {
+    await server.close();
+  }
+});
+
+test("PATCH /display-name renames the endpoint through the bridge owner", async () => {
+  const renamed: string[] = [];
+  const server = await startServer({
+    endpoint: {
+      renameDisplayName: async (displayName) => {
+        renamed.push(displayName);
+        return {
+          endpoint_id: "ep_ABC234",
+          display_name: displayName,
+        };
+      },
+    },
+  });
+  try {
+    const response = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "  review-left  " }));
+    const body = await responseJsonObject(response);
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(renamed, ["review-left"]);
+    assert.deepEqual(body, {
+      ok: true,
+      endpoint_id: "ep_ABC234",
+      display_name: "review-left",
+    });
+  } finally {
+    await server.close();
+  }
+});
+
+test("PATCH /display-name rejects requests without the expected bearer token", async () => {
+  const server = await startServer({
+    endpoint: {
+      renameDisplayName: async () => {
+        assert.fail("renameDisplayName should not be called");
+      },
+    },
+  });
+  try {
+    const responses = await Promise.all([
+      patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "review-left" }), null),
+      patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "review-left" }), null, { authorization: "secret" }),
+      patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "review-left" }), "wrong"),
+    ]);
+
+    for (const response of responses) {
+      assert.equal(response.status, 401);
+      assert.equal(await response.text(), "unauthorized\n");
+    }
+  } finally {
+    await server.close();
+  }
+});
+
+test("PATCH /display-name validates request JSON and display names", async () => {
+  const server = await startServer({
+    endpoint: {
+      renameDisplayName: async () => {
+        assert.fail("renameDisplayName should not be called");
+      },
+    },
+  });
+  try {
+    const malformed = await patchDisplayName(server.baseUrl, "{");
+    const missing = await patchDisplayName(server.baseUrl, JSON.stringify({ message: "review-left" }));
+    const empty = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: " " }));
+    const control = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "bad\nname" }));
+    const oversized = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "x".repeat(65) }));
+
+    assert.equal(malformed.status, 400);
+    assert.equal((await responseJsonObject(malformed)).error, "invalid JSON request body");
+    assert.equal(missing.status, 400);
+    assert.equal((await responseJsonObject(missing)).error, 'JSON requests must include a string "display_name" field');
+    assert.equal(empty.status, 400);
+    assert.match(stringField(await responseJsonObject(empty), "error"), /non-empty/);
+    assert.equal(control.status, 400);
+    assert.match(stringField(await responseJsonObject(control), "error"), /control characters/);
+    assert.equal(oversized.status, 400);
+    assert.match(stringField(await responseJsonObject(oversized), "error"), /64 characters or fewer/);
+  } finally {
+    await server.close();
+  }
+});
+
+test("PATCH /display-name enforces body size and method", async () => {
+  const server = await startServer({
+    maxBodyBytes: 3,
+    endpoint: {
+      renameDisplayName: async () => {
+        assert.fail("renameDisplayName should not be called");
+      },
+    },
+  });
+  try {
+    const oversized = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "review-left" }));
+    const wrongMethod = await fetch(`${server.baseUrl}/display-name`, { method: "POST" });
+
+    assert.equal(oversized.status, 413);
+    assert.match(stringField(await responseJsonObject(oversized), "error"), /request body exceeds 3 bytes/);
+    assert.equal(wrongMethod.status, 405);
+    assert.equal(await wrongMethod.text(), "method not allowed\n");
   } finally {
     await server.close();
   }

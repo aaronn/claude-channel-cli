@@ -2,6 +2,7 @@ import http from "node:http";
 import { errorMessage, HttpError, RequestTimeoutError } from "../errors.js";
 import { PendingRequests } from "../pending-requests.js";
 import { createRequestId, normalizeChannelSender, type ChannelEventMeta } from "../protocol.js";
+import { normalizeEndpointDisplayName } from "../registry/display-name.js";
 import { isAuthorized } from "../security/auth.js";
 import { parsePositiveIntegerString } from "../validation.js";
 import { messageFromBody, readBody } from "./body.js";
@@ -10,12 +11,17 @@ export type ChannelEmitter = {
   emitAsk: (requestId: string, content: string, meta?: ChannelEventMeta) => Promise<void>;
 };
 
+export type DisplayNameUpdater = {
+  renameDisplayName: (displayName: string) => Promise<{ endpoint_id: string; display_name: string }>;
+};
+
 export type BridgeHttpServerOptions = {
   host: string;
   token: string;
   maxBodyBytes: number;
   defaultAskTimeoutMs: number;
   channel: ChannelEmitter;
+  endpoint?: DisplayNameUpdater;
   pendingRequests: PendingRequests;
 };
 
@@ -43,6 +49,15 @@ async function handleHttpRequest(
       return;
     }
 
+    if (url.pathname === "/display-name") {
+      if (req.method !== "PATCH") {
+        sendText(res, 405, "method not allowed\n");
+        return;
+      }
+      await handleDisplayName(req, res, options);
+      return;
+    }
+
     sendText(res, 404, "not found\n");
   } catch (error) {
     const status = statusForError(error);
@@ -52,6 +67,28 @@ async function handleHttpRequest(
       sendJson(res, status, { ok: false, error: message });
     }
   }
+}
+
+async function handleDisplayName(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  options: BridgeHttpServerOptions,
+): Promise<void> {
+  if (!isAuthorized(req, options.token)) {
+    sendText(res, 401, "unauthorized\n");
+    return;
+  }
+  if (!options.endpoint) {
+    throw new Error("display name updater is not configured");
+  }
+
+  const displayName = await readDisplayName(req, options.maxBodyBytes);
+  const result = await options.endpoint.renameDisplayName(displayName);
+  sendJson(res, 200, {
+    ok: true,
+    endpoint_id: result.endpoint_id,
+    display_name: result.display_name,
+  });
 }
 
 async function handleAsk(
@@ -96,6 +133,31 @@ async function handleAsk(
     }
   } finally {
     removeDisconnectHandler();
+  }
+}
+
+async function readDisplayName(req: http.IncomingMessage, maxBodyBytes: number): Promise<string> {
+  const body = await readBody(req, maxBodyBytes);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    throw new HttpError(400, "invalid JSON request body");
+  }
+
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new HttpError(400, 'JSON requests must include a string "display_name" field');
+  }
+
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.display_name !== "string") {
+    throw new HttpError(400, 'JSON requests must include a string "display_name" field');
+  }
+
+  try {
+    return normalizeEndpointDisplayName(record.display_name);
+  } catch (error) {
+    throw new HttpError(400, errorMessage(error));
   }
 }
 

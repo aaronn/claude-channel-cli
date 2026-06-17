@@ -73,6 +73,21 @@ test("resolveClaudeTarget fails closed when multiple endpoints are plausible", a
   );
 });
 
+test("resolveClaudeTarget fails closed when a display name matches multiple endpoints", async () => {
+  const left = { ...app, display_name: "review" };
+  const right = { ...lib, display_name: "review" };
+
+  await assert.rejects(
+    resolveClaudeTarget({ target: "review", endpoints: [left, right] }),
+    (error) => error instanceof TargetResolutionError &&
+      error.code === "multiple_claude_targets" &&
+      error.candidates.length === 2,
+  );
+
+  const result = await resolveClaudeTarget({ target: right.endpoint_id, endpoints: [left, right] });
+  assert.equal(result.endpoint.endpoint_id, right.endpoint_id);
+});
+
 test("resolveClaudeTarget reports unknown explicit target with candidates", async () => {
   await assert.rejects(
     resolveClaudeTarget({ target: "missing", endpoints: [app, lib] }),

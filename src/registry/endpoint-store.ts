@@ -1,4 +1,5 @@
-import { chmod, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { chmod, mkdir, readFile, readdir, rename as renameFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { bridgeDir, ensureBridgeDir } from "../config/paths.js";
 import { createEndpointId } from "./endpoint-id.js";
@@ -7,6 +8,7 @@ import {
   type EndpointRecord,
   parseEndpointRecord,
   refreshEndpointRecord,
+  renameEndpointRecord,
   sortEndpointRecords,
 } from "./endpoint-record.js";
 import { isEndpointLive } from "./liveness.js";
@@ -43,6 +45,7 @@ export async function createUniqueEndpointRecord(input: {
   port: number;
   pid: number;
   projectDir: string;
+  displayName?: string;
   now?: Date;
 }, options: EndpointStoreOptions = {}): Promise<EndpointRecord> {
   for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -52,6 +55,7 @@ export async function createUniqueEndpointRecord(input: {
       port: input.port,
       pid: input.pid,
       projectDir: input.projectDir,
+      displayName: input.displayName,
       now: input.now,
     });
 
@@ -71,11 +75,24 @@ async function writeEndpointRecord(record: EndpointRecord, options: EndpointWrit
   const dir = options.dir ?? endpointsDir;
   await ensureEndpointsDir(dir);
   const file = endpointPath(record.endpoint_id, dir);
-  await writeFile(file, `${JSON.stringify(record, null, 2)}\n`, {
-    mode: 0o600,
-    flag: options.exclusive ? "wx" : "w",
-  });
-  await chmod(file, 0o600);
+  const content = `${JSON.stringify(record, null, 2)}\n`;
+
+  if (options.exclusive) {
+    await writeFile(file, content, { mode: 0o600, flag: "wx" });
+    await chmod(file, 0o600);
+    return;
+  }
+
+  const tempFile = path.join(dir, `.${record.endpoint_id}.${process.pid}.${randomUUID()}.tmp`);
+  try {
+    await writeFile(tempFile, content, { mode: 0o600, flag: "wx" });
+    await chmod(tempFile, 0o600);
+    await renameFile(tempFile, file);
+    await chmod(file, 0o600);
+  } catch (error) {
+    await rm(tempFile, { force: true });
+    throw error;
+  }
 }
 
 export async function refreshEndpoint(
@@ -85,6 +102,16 @@ export async function refreshEndpoint(
   const refreshed = refreshEndpointRecord(record, options.now ?? new Date());
   await writeEndpointRecord(refreshed, options);
   return refreshed;
+}
+
+export async function renameEndpoint(
+  record: EndpointRecord,
+  displayName: string,
+  options: EndpointStoreOptions = {},
+): Promise<EndpointRecord> {
+  const renamed = renameEndpointRecord(record, displayName);
+  await writeEndpointRecord(renamed, options);
+  return renamed;
 }
 
 export async function removeEndpointRecord(endpointId: string, options: EndpointStoreOptions = {}): Promise<void> {

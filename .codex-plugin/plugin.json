@@ -1,6 +1,6 @@
 {
   "name": "claude-channel-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Codex guidance and typed tools for using the local Claude Channel CLI.",
   "author": {
     "name": "Aaron"
