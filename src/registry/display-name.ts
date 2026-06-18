@@ -7,12 +7,12 @@ const DEFAULT_DISPLAY_NAME = "Claude Code";
 const RESERVED_TARGET_SUFFIX = "-project";
 
 export function normalizeEndpointDisplayName(value: string): string {
+  if (hasControlCharacter(value)) {
+    throw new Error("display_name must not contain control characters");
+  }
   const normalized = value.trim();
   if (normalized.length === 0) {
     throw new Error("display_name must be a non-empty string");
-  }
-  if (hasControlCharacter(normalized)) {
-    throw new Error("display_name must not contain control characters");
   }
   if (isReservedTargetName(normalized)) {
     throw new Error("display_name must not be a reserved target name");

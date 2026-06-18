@@ -17,6 +17,8 @@ test("normalizeEndpointDisplayName rejects empty, numeric, control, and long nam
   assert.throws(() => normalizeEndpointDisplayName("001"), /reserved target name/);
   assert.throws(() => normalizeEndpointDisplayName("ep_ABC234"), /reserved target name/);
   assert.throws(() => normalizeEndpointDisplayName("bad\nname"), /control characters/);
+  assert.throws(() => normalizeEndpointDisplayName("\nreview"), /control characters/);
+  assert.throws(() => normalizeEndpointDisplayName("review\t"), /control characters/);
   assert.throws(() => normalizeEndpointDisplayName("bad\u0085name"), /control characters/);
   assert.throws(
     () => normalizeEndpointDisplayName("x".repeat(MAX_ENDPOINT_DISPLAY_NAME_LENGTH + 1)),
