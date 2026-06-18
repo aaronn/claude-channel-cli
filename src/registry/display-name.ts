@@ -12,6 +12,9 @@ export function normalizeEndpointDisplayName(value: string): string {
   if (hasControlCharacter(normalized)) {
     throw new Error("display_name must not contain control characters");
   }
+  if (isListIndex(normalized)) {
+    throw new Error("display_name must not be only digits");
+  }
   if (displayNameLength(normalized) > MAX_ENDPOINT_DISPLAY_NAME_LENGTH) {
     throw new Error(`display_name must be ${MAX_ENDPOINT_DISPLAY_NAME_LENGTH} characters or fewer`);
   }
@@ -29,6 +32,10 @@ export function displayNameForProjectDir(projectDir: string): string {
 
 function displayNameLength(value: string): number {
   return [...value].length;
+}
+
+function isListIndex(value: string): boolean {
+  return /^\d+$/.test(value);
 }
 
 function hasControlCharacter(value: string): boolean {

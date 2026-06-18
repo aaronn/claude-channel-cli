@@ -11,8 +11,10 @@ test("normalizeEndpointDisplayName trims and accepts human names", () => {
   assert.equal(normalizeEndpointDisplayName("Claude Review"), "Claude Review");
 });
 
-test("normalizeEndpointDisplayName rejects empty, control, and long names", () => {
+test("normalizeEndpointDisplayName rejects empty, numeric, control, and long names", () => {
   assert.throws(() => normalizeEndpointDisplayName("   "), /non-empty/);
+  assert.throws(() => normalizeEndpointDisplayName("2"), /only digits/);
+  assert.throws(() => normalizeEndpointDisplayName("001"), /only digits/);
   assert.throws(() => normalizeEndpointDisplayName("bad\nname"), /control characters/);
   assert.throws(
     () => normalizeEndpointDisplayName("x".repeat(MAX_ENDPOINT_DISPLAY_NAME_LENGTH + 1)),

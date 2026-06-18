@@ -88,7 +88,6 @@ async function writeEndpointRecord(record: EndpointRecord, options: EndpointWrit
     await writeFile(tempFile, content, { mode: 0o600, flag: "wx" });
     await chmod(tempFile, 0o600);
     await renameFile(tempFile, file);
-    await chmod(file, 0o600);
   } catch (error) {
     await rm(tempFile, { force: true });
     throw error;

@@ -79,7 +79,7 @@ async function handleDisplayName(
     return;
   }
   if (!options.endpoint) {
-    throw new Error("display name updater is not configured");
+    throw new HttpError(501, "display name updater is not configured");
   }
 
   const displayName = await readDisplayName(req, options.maxBodyBytes);

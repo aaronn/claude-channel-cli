@@ -215,6 +215,7 @@ test("PATCH /display-name validates request JSON and display names", async () =>
     const malformed = await patchDisplayName(server.baseUrl, "{");
     const missing = await patchDisplayName(server.baseUrl, JSON.stringify({ message: "review-left" }));
     const empty = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: " " }));
+    const numeric = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "2" }));
     const control = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "bad\nname" }));
     const oversized = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "x".repeat(65) }));
 
@@ -224,10 +225,25 @@ test("PATCH /display-name validates request JSON and display names", async () =>
     assert.equal((await responseJsonObject(missing)).error, 'JSON requests must include a string "display_name" field');
     assert.equal(empty.status, 400);
     assert.match(stringField(await responseJsonObject(empty), "error"), /non-empty/);
+    assert.equal(numeric.status, 400);
+    assert.match(stringField(await responseJsonObject(numeric), "error"), /only digits/);
     assert.equal(control.status, 400);
     assert.match(stringField(await responseJsonObject(control), "error"), /control characters/);
     assert.equal(oversized.status, 400);
     assert.match(stringField(await responseJsonObject(oversized), "error"), /64 characters or fewer/);
+  } finally {
+    await server.close();
+  }
+});
+
+test("PATCH /display-name reports a missing updater as not implemented", async () => {
+  const server = await startServer();
+  try {
+    const response = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "review-left" }));
+    const body = await responseJsonObject(response);
+
+    assert.equal(response.status, 501);
+    assert.equal(body.error, "display name updater is not configured");
   } finally {
     await server.close();
   }
