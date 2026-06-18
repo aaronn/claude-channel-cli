@@ -48,9 +48,9 @@ export function createEndpointRecord(input: {
     port: input.port,
     pid: input.pid,
     project_dir: input.projectDir,
-    display_name: input.displayName
-      ? normalizeEndpointDisplayName(input.displayName)
-      : displayNameForProjectDir(input.projectDir),
+    display_name: input.displayName === undefined
+      ? displayNameForProjectDir(input.projectDir)
+      : normalizeEndpointDisplayName(input.displayName),
     started_at: now.toISOString(),
     last_seen_at: now.toISOString(),
   };

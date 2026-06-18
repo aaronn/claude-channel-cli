@@ -52,6 +52,21 @@ test("createEndpointRecord accepts an explicit display name", () => {
   assert.equal(record.display_name, "review-left");
 });
 
+test("createEndpointRecord rejects explicitly empty display names", () => {
+  assert.throws(
+    () => createEndpointRecord({
+      endpointId: "ep_ABC234",
+      host: "127.0.0.1",
+      port: 49152,
+      pid: process.pid,
+      projectDir: "/repo/app",
+      displayName: "",
+      now: new Date("2026-06-01T00:00:00.000Z"),
+    }),
+    /non-empty/,
+  );
+});
+
 test("parseEndpointRecord rejects malformed records", () => {
   assert.throws(() => parseEndpointRecord("{}", "endpoint"), /schema_version must be 1/);
   assert.throws(() => parseEndpointRecord("{", "endpoint"), /expected JSON object/);
