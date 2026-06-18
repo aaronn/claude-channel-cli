@@ -216,6 +216,7 @@ test("PATCH /display-name validates request JSON and display names", async () =>
     const missing = await patchDisplayName(server.baseUrl, JSON.stringify({ message: "review-left" }));
     const empty = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: " " }));
     const numeric = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "2" }));
+    const endpointId = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "ep_ABC234" }));
     const control = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "bad\nname" }));
     const oversized = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "x".repeat(65) }));
 
@@ -226,7 +227,9 @@ test("PATCH /display-name validates request JSON and display names", async () =>
     assert.equal(empty.status, 400);
     assert.match(stringField(await responseJsonObject(empty), "error"), /non-empty/);
     assert.equal(numeric.status, 400);
-    assert.match(stringField(await responseJsonObject(numeric), "error"), /only digits/);
+    assert.match(stringField(await responseJsonObject(numeric), "error"), /reserved target name/);
+    assert.equal(endpointId.status, 400);
+    assert.match(stringField(await responseJsonObject(endpointId), "error"), /reserved target name/);
     assert.equal(control.status, 400);
     assert.match(stringField(await responseJsonObject(control), "error"), /control characters/);
     assert.equal(oversized.status, 400);

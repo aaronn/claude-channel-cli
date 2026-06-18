@@ -126,7 +126,7 @@ claude-channel ask --to review-left "From Codex: review this branch."
 ```
 
 Duplicate display names are allowed but remain ambiguous; use an endpoint id from `claude-channel list` if a name matches more than one live session.
-Display names cannot be only digits, because numeric targets are reserved for list indexes.
+Display names cannot be only digits or look like endpoint ids, because numeric targets and endpoint ids are reserved for targeting.
 
 For scripted launches, set the startup display name before starting Claude Code:
 

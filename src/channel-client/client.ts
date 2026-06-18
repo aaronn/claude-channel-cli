@@ -5,7 +5,7 @@ import type { EndpointRecord } from "../registry/endpoint-record.js";
 import { readRecordObject } from "../validation.js";
 import { formatChannelUrl } from "../registry/endpoint-url.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
-import { ASK_TRANSPORT_TIMEOUT_GRACE_MS } from "../config/defaults.js";
+import { ASK_TRANSPORT_TIMEOUT_GRACE_MS, DEFAULT_RENAME_TRANSPORT_TIMEOUT_MS } from "../config/defaults.js";
 import { isEndpointId } from "../registry/endpoint-id.js";
 import { normalizeEndpointDisplayName } from "../registry/display-name.js";
 
@@ -47,6 +47,7 @@ export async function renameClaudeDisplayName(
   options: TargetResolutionOptions & {
     token?: string;
     fetchFn?: typeof fetch;
+    transportTimeoutMs?: number;
   } = {},
 ): Promise<RenameDisplayNameResponse> {
   const normalizedDisplayName = normalizeEndpointDisplayName(displayName);
@@ -59,6 +60,7 @@ export async function renameClaudeDisplayName(
       "content-type": "application/json; charset=utf-8",
     },
     body: JSON.stringify({ display_name: normalizedDisplayName }),
+    signal: AbortSignal.timeout(options.transportTimeoutMs ?? DEFAULT_RENAME_TRANSPORT_TIMEOUT_MS),
   });
   const body = validateRenameDisplayNameResponse(
     await readJsonResponse(response, "rename"),

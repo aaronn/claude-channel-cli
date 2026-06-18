@@ -86,10 +86,11 @@ function resolveNamedTarget(
   const byIndex = /^\d+$/.test(target) ? endpoints[Number.parseInt(target, 10) - 1] : undefined;
   if (byIndex) return byIndex;
 
+  const byEndpointId = endpoints.find((endpoint) => endpoint.endpoint_id === target);
+  if (byEndpointId) return byEndpointId;
+
   const matches = endpoints.filter((endpoint) =>
-    endpoint.endpoint_id === target ||
-    endpoint.display_name === target ||
-    endpoint.project_dir === target
+    endpoint.display_name === target || endpoint.project_dir === target
   );
 
   if (matches.length === 1) return matches[0];

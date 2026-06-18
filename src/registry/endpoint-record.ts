@@ -1,5 +1,9 @@
 import { isEndpointId } from "./endpoint-id.js";
-import { displayNameForProjectDir, normalizeEndpointDisplayName } from "./display-name.js";
+import {
+  coerceLegacyEndpointDisplayName,
+  displayNameForProjectDir,
+  normalizeEndpointDisplayName,
+} from "./display-name.js";
 
 export type EndpointRecord = {
   schema_version: 1;
@@ -102,12 +106,14 @@ export function parseEndpointRecord(raw: string, source = "endpoint record"): En
   if (typeof record.display_name !== "string") {
     throw new Error(`${source} is invalid: display_name must be a non-empty string`);
   }
+  if (record.display_name.trim().length === 0) {
+    throw new Error(`${source} is invalid: display_name must be a non-empty string`);
+  }
   let displayName: string;
   try {
     displayName = normalizeEndpointDisplayName(record.display_name);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "display_name is invalid";
-    throw new Error(`${source} is invalid: ${message}`, { cause: error });
+  } catch {
+    displayName = coerceLegacyEndpointDisplayName(record.display_name, record.project_dir);
   }
   if (!isValidDate(record.started_at)) {
     throw new Error(`${source} is invalid: started_at must be a valid timestamp`);

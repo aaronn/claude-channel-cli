@@ -55,6 +55,29 @@ test("createEndpointRecord accepts an explicit display name", () => {
 test("parseEndpointRecord rejects malformed records", () => {
   assert.throws(() => parseEndpointRecord("{}", "endpoint"), /schema_version must be 1/);
   assert.throws(() => parseEndpointRecord("{", "endpoint"), /expected JSON object/);
+  assert.throws(
+    () => parseEndpointRecord(JSON.stringify({ ...appRecord(), display_name: " " }), "endpoint"),
+    /display_name must be a non-empty string/,
+  );
+});
+
+test("parseEndpointRecord preserves legacy records with now-reserved display names", () => {
+  assert.equal(
+    parseEndpointRecord(JSON.stringify({ ...appRecord(), project_dir: "/repo/123", display_name: "123" })).display_name,
+    "123-project",
+  );
+  assert.equal(
+    parseEndpointRecord(JSON.stringify({ ...appRecord(), display_name: "ep_DEF567" })).display_name,
+    "ep_DEF567-project",
+  );
+  assert.equal(
+    parseEndpointRecord(JSON.stringify({ ...appRecord(), display_name: "bad\u0085name" })).display_name,
+    "bad name",
+  );
+  assert.equal(
+    parseEndpointRecord(JSON.stringify({ ...appRecord(), display_name: "Claude Code" })).display_name,
+    "Claude Code",
+  );
 });
 
 test("renameEndpointRecord updates display name without changing endpoint identity", () => {
@@ -195,6 +218,17 @@ async function writeEndpointFixture(dir: string, record: EndpointRecord): Promis
     path.join(dir, `${record.endpoint_id}.json`),
     `${JSON.stringify(record, null, 2)}\n`,
   );
+}
+
+function appRecord(): EndpointRecord {
+  return createEndpointRecord({
+    endpointId: "ep_ABC234",
+    host: "127.0.0.1",
+    port: 49152,
+    pid: process.pid,
+    projectDir: "/repo/app",
+    now: new Date("2026-06-01T00:00:00.000Z"),
+  });
 }
 
 async function endpointFileCount(dir: string): Promise<number> {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { askClaude, askTransportTimeoutMs, renameClaudeDisplayName } from "../src/channel-client/client.js";
-import { ASK_TRANSPORT_TIMEOUT_GRACE_MS } from "../src/config/defaults.js";
+import { ASK_TRANSPORT_TIMEOUT_GRACE_MS, DEFAULT_RENAME_TRANSPORT_TIMEOUT_MS } from "../src/config/defaults.js";
 import type { EndpointRecord } from "../src/registry/endpoint-record.js";
 
 const endpoint: EndpointRecord = {
@@ -130,10 +130,33 @@ test("renameClaudeDisplayName sends an authenticated JSON PATCH", async () => {
   assert.equal(request?.url, "http://[::1]:8788/display-name");
   assert.equal(request?.init?.method, "PATCH");
   assert.equal(request?.init?.body, JSON.stringify({ display_name: "review-left" }));
+  assert.ok(request?.init?.signal instanceof AbortSignal);
   assert.deepEqual(requestHeaders(request?.init), {
     authorization: "Bearer secret",
     "content-type": "application/json; charset=utf-8",
   });
+});
+
+test("renameClaudeDisplayName uses a bounded transport timeout", async () => {
+  let signal: AbortSignal | null = null;
+
+  await renameClaudeDisplayName("review-left", {
+    endpoints: [endpoint],
+    token: "secret",
+    transportTimeoutMs: DEFAULT_RENAME_TRANSPORT_TIMEOUT_MS,
+    fetchFn: async (_url, init) => {
+      signal = init?.signal instanceof AbortSignal ? init.signal : null;
+      return jsonResponse({
+        ok: true,
+        endpoint_id: endpoint.endpoint_id,
+        display_name: "review-left",
+      });
+    },
+  });
+
+  const capturedSignal = signal as AbortSignal | null;
+  assert.ok(capturedSignal);
+  assert.equal(capturedSignal.aborted, false);
 });
 
 test("client response validation rejects malformed envelopes", async () => {

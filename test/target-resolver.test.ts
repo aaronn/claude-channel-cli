@@ -28,6 +28,13 @@ test("resolveClaudeTarget uses explicit endpoint id", async () => {
   assert.equal(result.reason, "explicit");
 });
 
+test("resolveClaudeTarget gives endpoint ids precedence over legacy display-name collisions", async () => {
+  const renamed = { ...app, display_name: lib.endpoint_id };
+  const result = await resolveClaudeTarget({ target: lib.endpoint_id, endpoints: [renamed, lib] });
+
+  assert.equal(result.endpoint.endpoint_id, lib.endpoint_id);
+});
+
 test("resolveClaudeTarget uses unique display name", async () => {
   const result = await resolveClaudeTarget({ target: "app", endpoints: [app, lib] });
 

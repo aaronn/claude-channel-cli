@@ -1,9 +1,10 @@
 import path from "node:path";
+import { isEndpointId } from "./endpoint-id.js";
 
 export const MAX_ENDPOINT_DISPLAY_NAME_LENGTH = 64;
 
 const DEFAULT_DISPLAY_NAME = "Claude Code";
-const NUMERIC_DEFAULT_SUFFIX = "-project";
+const RESERVED_TARGET_SUFFIX = "-project";
 
 export function normalizeEndpointDisplayName(value: string): string {
   const normalized = value.trim();
@@ -13,8 +14,8 @@ export function normalizeEndpointDisplayName(value: string): string {
   if (hasControlCharacter(normalized)) {
     throw new Error("display_name must not contain control characters");
   }
-  if (isListIndex(normalized)) {
-    throw new Error("display_name must not be only digits");
+  if (isReservedTargetName(normalized)) {
+    throw new Error("display_name must not be a reserved target name");
   }
   if (displayNameLength(normalized) > MAX_ENDPOINT_DISPLAY_NAME_LENGTH) {
     throw new Error(`display_name must be ${MAX_ENDPOINT_DISPLAY_NAME_LENGTH} characters or fewer`);
@@ -24,12 +25,20 @@ export function normalizeEndpointDisplayName(value: string): string {
 
 export function displayNameForProjectDir(projectDir: string): string {
   const raw = path.basename(projectDir) || projectDir || DEFAULT_DISPLAY_NAME;
-  const withoutControls = replaceControlCharacters(raw).trim();
-  const fallback = withoutControls || DEFAULT_DISPLAY_NAME;
+  return safeDisplayNameDefault(raw);
+}
+
+export function coerceLegacyEndpointDisplayName(value: string, projectDir: string): string {
+  const sanitized = replaceControlCharacters(value).trim();
+  return sanitized ? safeDisplayNameDefault(sanitized) : displayNameForProjectDir(projectDir);
+}
+
+function safeDisplayNameDefault(value: string): string {
+  const fallback = replaceControlCharacters(value).trim() || DEFAULT_DISPLAY_NAME;
   const truncated = displayNameLength(fallback) <= MAX_ENDPOINT_DISPLAY_NAME_LENGTH
     ? fallback
     : [...fallback].slice(0, MAX_ENDPOINT_DISPLAY_NAME_LENGTH).join("").trim() || DEFAULT_DISPLAY_NAME;
-  return isListIndex(truncated) ? displayNameForNumericProjectDir(truncated) : truncated;
+  return isReservedTargetName(truncated) ? displayNameForReservedTargetName(truncated) : truncated;
 }
 
 function displayNameLength(value: string): number {
@@ -40,10 +49,14 @@ function isListIndex(value: string): boolean {
   return /^\d+$/.test(value);
 }
 
-function displayNameForNumericProjectDir(value: string): string {
-  const prefixLength = MAX_ENDPOINT_DISPLAY_NAME_LENGTH - NUMERIC_DEFAULT_SUFFIX.length;
+function isReservedTargetName(value: string): boolean {
+  return isListIndex(value) || isEndpointId(value);
+}
+
+function displayNameForReservedTargetName(value: string): string {
+  const prefixLength = MAX_ENDPOINT_DISPLAY_NAME_LENGTH - RESERVED_TARGET_SUFFIX.length;
   const prefix = [...value].slice(0, prefixLength).join("").trim() || DEFAULT_DISPLAY_NAME;
-  return `${prefix}${NUMERIC_DEFAULT_SUFFIX}`;
+  return `${prefix}${RESERVED_TARGET_SUFFIX}`;
 }
 
 function hasControlCharacter(value: string): boolean {
@@ -61,5 +74,6 @@ function replaceControlCharacters(value: string): string {
 
 function isControlCharacter(character: string): boolean {
   const codePoint = character.codePointAt(0);
-  return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
+  return codePoint !== undefined &&
+    (codePoint <= 0x1f || codePoint === 0x7f || (codePoint >= 0x80 && codePoint <= 0x9f));
 }
