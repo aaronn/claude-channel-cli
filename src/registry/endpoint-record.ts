@@ -105,7 +105,7 @@ export function parseEndpointRecord(raw: string, source = "endpoint record"): En
     throw new Error(`${source} is invalid: project_dir must be a non-empty string`);
   }
   if (typeof record.display_name !== "string") {
-    throw new Error(`${source} is invalid: display_name must be a non-empty string`);
+    throw new Error(`${source} is invalid: display_name must be a string`);
   }
   let displayName: EndpointDisplayName;
   try {

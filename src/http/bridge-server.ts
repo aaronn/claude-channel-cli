@@ -4,7 +4,7 @@ import { PendingRequests } from "../pending-requests.js";
 import { createRequestId, normalizeChannelSender, type ChannelEventMeta } from "../protocol.js";
 import { normalizeEndpointDisplayName } from "../registry/display-name.js";
 import { isAuthorized } from "../security/auth.js";
-import { parsePositiveIntegerString } from "../validation.js";
+import { parsePositiveIntegerString, readRecordObject } from "../validation.js";
 import { messageFromBody, readBody } from "./body.js";
 
 export type ChannelEmitter = {
@@ -21,7 +21,7 @@ export type BridgeHttpServerOptions = {
   maxBodyBytes: number;
   defaultAskTimeoutMs: number;
   channel: ChannelEmitter;
-  endpoint?: DisplayNameUpdater;
+  endpoint: DisplayNameUpdater;
   pendingRequests: PendingRequests;
 };
 
@@ -74,10 +74,6 @@ async function handleDisplayName(
     sendText(res, 401, "unauthorized\n");
     return;
   }
-  if (!options.endpoint) {
-    throw new HttpError(501, "display name updater is not configured");
-  }
-
   const displayName = await readDisplayName(req, options.maxBodyBytes);
   const result = await options.endpoint.renameDisplayName(displayName);
   sendJson(res, 200, {
@@ -141,17 +137,21 @@ async function readDisplayName(req: http.IncomingMessage, maxBodyBytes: number):
     throw new HttpError(400, "invalid JSON request body");
   }
 
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    throw new HttpError(400, 'JSON requests must include a string "display_name" field');
-  }
-
-  const record = parsed as Record<string, unknown>;
+  const record = readDisplayNameRecord(parsed);
   if (typeof record.display_name !== "string") {
     throw new HttpError(400, 'JSON requests must include a string "display_name" field');
   }
 
   try {
     return normalizeEndpointDisplayName(record.display_name);
+  } catch (error) {
+    throw new HttpError(400, errorMessage(error));
+  }
+}
+
+function readDisplayNameRecord(value: unknown): Record<string, unknown> {
+  try {
+    return readRecordObject(value, 'JSON requests must include a string "display_name" field');
   } catch (error) {
     throw new HttpError(400, errorMessage(error));
   }

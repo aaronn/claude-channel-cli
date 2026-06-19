@@ -6,7 +6,6 @@ import { readRecordObject } from "../validation.js";
 import { formatChannelUrl } from "../registry/endpoint-url.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
 import { ASK_TRANSPORT_TIMEOUT_GRACE_MS, DEFAULT_RENAME_TRANSPORT_TIMEOUT_MS } from "../config/defaults.js";
-import { isEndpointId } from "../registry/endpoint-id.js";
 import { normalizeEndpointDisplayName } from "../registry/display-name.js";
 
 type ChannelMessageOptions = TargetResolutionOptions & {
@@ -173,7 +172,6 @@ function validateRenameDisplayNameResponse(
   if (
     record.ok !== true ||
     typeof endpointId !== "string" ||
-    !isEndpointId(endpointId) ||
     endpointId !== endpoint.endpoint_id ||
     typeof displayName !== "string"
   ) {

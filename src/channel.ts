@@ -2,7 +2,7 @@
 import path from "node:path";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { detectChannelReadiness } from "./channel-readiness.js";
+import { isChannelReady } from "./channel-readiness.js";
 import { readChannelRuntimeConfig } from "./config/env.js";
 import { readOrCreateToken } from "./config/paths.js";
 import { errorMessage } from "./errors.js";
@@ -20,7 +20,6 @@ const projectDir = path.resolve(process.env.CLAUDE_CHANNEL_PROJECT_DIR ?? proces
 let endpointRecord: EndpointRecord | undefined;
 let refreshTimer: NodeJS.Timeout | undefined;
 let endpointWriteQueue = Promise.resolve();
-let httpServerListening = false;
 let shuttingDown = false;
 
 const token = await readOrCreateToken();
@@ -40,15 +39,13 @@ const initialized = waitForInitialized(channel.server);
 await channel.server.connect(new StdioServerTransport());
 await initialized;
 
-const readiness = detectChannelReadiness(channel.server.getClientCapabilities());
-if (!readiness.ready) {
+if (!isChannelReady(channel.server.getClientCapabilities())) {
   console.error(
     "claude-channel-cli did not register an endpoint because Claude Code did not enable channel delivery.",
   );
   console.error("Start Claude Code with: claude --dangerously-load-development-channels server:claude-channel-cli");
 } else {
   httpServer.listen(config.port, config.host, () => {
-    httpServerListening = true;
     const address = httpServer.address();
     const port = typeof address === "object" && address ? address.port : config.port;
     void registerEndpoint(port).catch((error) => {
@@ -120,7 +117,7 @@ async function shutdown(): Promise<void> {
     await removeEndpointRecord(endpointRecord.endpoint_id);
     endpointRecord = undefined;
   }
-  if (httpServerListening) {
+  if (httpServer.listening) {
     await new Promise<void>((resolve) => {
       httpServer.close(() => resolve());
     });

@@ -31,6 +31,12 @@ async function startServer(
     maxBodyBytes: 1024,
     defaultAskTimeoutMs: 100,
     channel,
+    endpoint: {
+      renameDisplayName: async (displayName) => ({
+        endpoint_id: "ep_ABC234",
+        display_name: displayName,
+      }),
+    },
     pendingRequests,
     ...options,
   });
@@ -234,19 +240,6 @@ test("PATCH /display-name validates request JSON and display names", async () =>
     assert.match(stringField(await responseJsonObject(control), "error"), /control or formatting characters/);
     assert.equal(oversized.status, 400);
     assert.match(stringField(await responseJsonObject(oversized), "error"), /64 characters or fewer/);
-  } finally {
-    await server.close();
-  }
-});
-
-test("PATCH /display-name reports a missing updater as not implemented", async () => {
-  const server = await startServer();
-  try {
-    const response = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "review-left" }));
-    const body = await responseJsonObject(response);
-
-    assert.equal(response.status, 501);
-    assert.equal(body.error, "display name updater is not configured");
   } finally {
     await server.close();
   }

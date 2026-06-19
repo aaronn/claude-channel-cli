@@ -10,7 +10,9 @@ const DEFAULT_DISPLAY_NAME = "Claude Code";
 const RESERVED_TARGET_SUFFIX = "-project";
 const UNSAFE_BASE_DISPLAY_CHARACTER_RE = /[\p{Cc}\p{Zl}\p{Zp}]/u;
 const FORMAT_CHARACTER_RE = /\p{Cf}/u;
+// ZWNJ is meaningful in scripts such as Persian and Indic languages.
 const ZERO_WIDTH_NON_JOINER = 0x200c;
+// ZWJ is meaningful for emoji sequences and script shaping.
 const ZERO_WIDTH_JOINER = 0x200d;
 
 export function normalizeEndpointDisplayName(value: string, label = "display_name"): EndpointDisplayName {
