@@ -18,20 +18,22 @@ This makes the `claude-channel` command available on your `PATH`.
 
 ## Start Claude Code
 
-Register the receiver-side MCP server once from the project where Claude Code should receive channel messages:
+Register the receiver-side MCP server once from the project where Claude Code should receive channel messages. This registration is saved for that project directory:
 
 ```sh
 cd ~/github/my_project/
 claude-channel setup-mcp
 ```
 
-Then start the Claude Code session you want to make reachable:
+Then start the Claude Code session in that same project:
 
 ```sh
 claude --dangerously-load-development-channels server:claude-channel-cli
 ```
 
-`setup-mcp` is saved in Claude Code's local project config. After you run it, plain `claude` may still start the MCP subprocess, but it will not register a usable channel target unless the session was started with the channel flag. If `claude-channel list` shows more than one target, close the extra Claude Code session or choose the intended target with `--to`.
+`setup-mcp` is per project directory. Run it from the project you want Codex or another caller to reach; do not register one project and then expect a different Claude Code project to receive those channel messages. The `--dangerously-load-development-channels` command is the per-launch channel enablement step. For one-off scripted launches, you can combine it with `CLAUDE_CHANNEL_DISPLAY_NAME` to set the initial target label.
+
+After `setup-mcp`, plain `claude` may still start the MCP subprocess, but it will not register a usable channel target unless the session was started with the channel flag. If `claude-channel list` shows more than one target, close the extra Claude Code session or choose the intended target with `--to`.
 
 To remove the saved project registration:
 
@@ -170,7 +172,7 @@ npm run build
 npm link
 ```
 
-`npm link` makes the checkout's `claude-channel` and `claude-channel-server` binaries available on your `PATH`. Then register the linked server from the receiver project and start the Claude Code session you want to make reachable:
+`npm link` makes the checkout's `claude-channel` and `claude-channel-server` binaries available on your `PATH`. Then register the linked server from the receiver project directory and start the Claude Code session in that same project:
 
 ```sh
 cd /path/to/receiver-project
