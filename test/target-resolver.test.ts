@@ -72,27 +72,55 @@ test("resolveClaudeTarget selects exactly one endpoint in the current workspace"
   assert.equal(result.reason, "workspace");
 });
 
-test("resolveClaudeTarget fails closed when the only endpoint is outside the workspace", async () => {
-  await assert.rejects(
-    resolveClaudeTarget({ endpoints: [app], cwd: "/repo/other" }),
-    (error) => error instanceof TargetResolutionError &&
-      error.code === "no_workspace_claude_target" &&
-      error.candidates.length === 1,
-  );
-});
-
-test("resolveClaudeTarget selects unique workspace match", async () => {
+test("resolveClaudeTarget selects a unique workspace match", async () => {
   const result = await resolveClaudeTarget({ endpoints: [app, lib], cwd: "/repo/app/src" });
 
   assert.equal(result.endpoint.endpoint_id, "ep_ABC234");
   assert.equal(result.reason, "workspace");
 });
 
-test("resolveClaudeTarget fails closed when multiple endpoints are plausible", async () => {
+test("resolveClaudeTarget requires an explicit target when the only endpoint is outside the workspace", async () => {
+  await assert.rejects(
+    resolveClaudeTarget({ endpoints: [app], cwd: "/repo/other" }),
+    (error) => error instanceof TargetResolutionError &&
+      error.code === "target_required" &&
+      error.candidates.length === 1,
+  );
+});
+
+test("resolveClaudeTarget requires an explicit target when no endpoint matches the current workspace", async () => {
   await assert.rejects(
     resolveClaudeTarget({ endpoints: [app, lib], cwd: "/repo" }),
     (error) => error instanceof TargetResolutionError &&
-      error.code === "multiple_claude_targets" &&
+      error.code === "target_required" &&
+      error.candidates.length === 2,
+  );
+});
+
+test("resolveClaudeTarget requires an explicit target when multiple endpoints match the current workspace", async () => {
+  const left = createEndpointRecord({
+    endpointId: app.endpoint_id,
+    host: app.host,
+    port: app.port,
+    pid: app.pid,
+    projectDir: app.project_dir,
+    displayName: "review-left",
+    now: new Date(app.started_at),
+  });
+  const right = createEndpointRecord({
+    endpointId: lib.endpoint_id,
+    host: lib.host,
+    port: lib.port,
+    pid: lib.pid,
+    projectDir: app.project_dir,
+    displayName: "review-right",
+    now: new Date(lib.started_at),
+  });
+
+  await assert.rejects(
+    resolveClaudeTarget({ endpoints: [left, right], cwd: "/repo/app" }),
+    (error) => error instanceof TargetResolutionError &&
+      error.code === "target_required" &&
       error.candidates.length === 2,
   );
 });

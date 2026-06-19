@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import { createBridgeHttpServer } from "../src/http/bridge-server.js";
+import { HttpError } from "../src/errors.js";
 import { PendingRequests } from "../src/pending-requests.js";
 import { createAutoAnswerChannel, createTestClaudeChannel } from "./helpers.js";
 
@@ -262,6 +263,24 @@ test("PATCH /display-name enforces body size and method", async () => {
     assert.match(stringField(await responseJsonObject(oversized), "error"), /request body exceeds 3 bytes/);
     assert.equal(wrongMethod.status, 404);
     assert.equal(await wrongMethod.text(), "not found\n");
+  } finally {
+    await server.close();
+  }
+});
+
+test("PATCH /display-name returns endpoint lifecycle errors without masking them", async () => {
+  const server = await startServer({
+    endpoint: {
+      renameDisplayName: async () => {
+        throw new HttpError(503, "Claude channel endpoint is shutting down");
+      },
+    },
+  });
+  try {
+    const response = await patchDisplayName(server.baseUrl, JSON.stringify({ display_name: "review-left" }));
+
+    assert.equal(response.status, 503);
+    assert.equal((await responseJsonObject(response)).error, "Claude channel endpoint is shutting down");
   } finally {
     await server.close();
   }

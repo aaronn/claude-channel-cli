@@ -41,7 +41,7 @@ test("askClaude sends a plain-text request with auth, sender metadata, and timeo
 
   const result = await askClaude("question", {
     endpoints: [endpoint],
-    cwd: "/repo/app",
+    target: "ep_ABC234",
     token: "secret",
     sender: "reviewer",
     timeoutMs: 42,
@@ -87,7 +87,7 @@ test("askClaude resolves sender metadata from environment or default", async () 
 
   await askClaude("hello", {
     endpoints: [endpoint],
-    cwd: "/repo/app",
+    target: "ep_ABC234",
     token: "secret",
     env: { CLAUDE_CHANNEL_SENDER: "env-sender" },
     timeoutMs: 1,
@@ -95,7 +95,7 @@ test("askClaude resolves sender metadata from environment or default", async () 
   });
   await askClaude("hello", {
     endpoints: [endpoint],
-    cwd: "/repo/app",
+    target: "ep_ABC234",
     token: "secret",
     env: {},
     timeoutMs: 1,
@@ -114,7 +114,7 @@ test("renameClaudeDisplayName sends an authenticated JSON PATCH", async () => {
 
   const result = await renameClaudeDisplayName("  review-left  ", {
     endpoints: [endpoint],
-    cwd: "/repo/app",
+    target: "ep_ABC234",
     token: "secret",
     fetchFn: async (url, init) => {
       request = { url: requestUrl(url), init };
@@ -147,7 +147,7 @@ test("renameClaudeDisplayName uses a bounded transport timeout", async () => {
 
   await renameClaudeDisplayName("review-left", {
     endpoints: [endpoint],
-    cwd: "/repo/app",
+    target: "ep_ABC234",
     token: "secret",
     transportTimeoutMs: DEFAULT_RENAME_TRANSPORT_TIMEOUT_MS,
     fetchFn: async (_url, init) => {
@@ -169,7 +169,7 @@ test("client response validation rejects malformed envelopes", async () => {
   await assert.rejects(
     askClaude("hello", {
       endpoints: [endpoint],
-      cwd: "/repo/app",
+      target: "ep_ABC234",
       token: "secret",
       timeoutMs: 1,
       fetchFn: async () => jsonResponse({
@@ -185,7 +185,7 @@ test("client response validation rejects malformed envelopes", async () => {
   await assert.rejects(
     askClaude("hello", {
       endpoints: [endpoint],
-      cwd: "/repo/app",
+      target: "ep_ABC234",
       token: "secret",
       timeoutMs: 1,
       fetchFn: async () => new Response("not json", { status: 200 }),
@@ -196,7 +196,7 @@ test("client response validation rejects malformed envelopes", async () => {
   await assert.rejects(
     renameClaudeDisplayName("review-left", {
       endpoints: [endpoint],
-      cwd: "/repo/app",
+      target: "ep_ABC234",
       token: "secret",
       fetchFn: async () => jsonResponse({
         ok: true,

@@ -31,7 +31,7 @@ function healthError(health: unknown): string {
 test("readChannelStatus reports healthy channel", async () => {
   const result = await readChannelStatus({
     endpoints: [endpoint],
-    cwd: "/repo/app",
+    target: "ep_ABC234",
     fetchFn: async (url, init) => {
       assert.equal(url, "http://127.0.0.1:8788/health");
       assert.deepEqual(init, { method: "GET" });
@@ -47,7 +47,7 @@ test("readChannelStatus reports healthy channel", async () => {
 test("readChannelStatus reports unreachable channel", async () => {
   const result = await readChannelStatus({
     endpoints: [endpoint],
-    cwd: "/repo/app",
+    target: "ep_ABC234",
     fetchFn: async () => {
       throw new Error("connect ECONNREFUSED");
     },
@@ -61,7 +61,7 @@ test("readChannelStatus reports unreachable channel", async () => {
 test("readChannelStatus reports invalid health JSON", async () => {
   const result = await readChannelStatus({
     endpoints: [endpoint],
-    cwd: "/repo/app",
+    target: "ep_ABC234",
     fetchFn: async () => new Response("not json", { status: 200 }),
   });
 
@@ -77,7 +77,7 @@ test("readChannelStatus reports invalid health JSON", async () => {
 test("readChannelStatus reports unhealthy JSON", async () => {
   const result = await readChannelStatus({
     endpoints: [endpoint],
-    cwd: "/repo/app",
+    target: "ep_ABC234",
     fetchFn: async () => new Response(JSON.stringify({ ok: false }), { status: 200 }),
   });
 

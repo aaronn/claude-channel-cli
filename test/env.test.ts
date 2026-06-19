@@ -37,6 +37,15 @@ test("readChannelRuntimeConfig uses defaults when numeric environment values are
   });
 });
 
+test("readChannelRuntimeConfig treats empty display name environment values as unset", () => {
+  assert.equal(readChannelRuntimeConfig({
+    CLAUDE_CHANNEL_DISPLAY_NAME: "",
+  }).displayName, undefined);
+  assert.equal(readChannelRuntimeConfig({
+    CLAUDE_CHANNEL_DISPLAY_NAME: "   ",
+  }).displayName, undefined);
+});
+
 test("readChannelRuntimeConfig rejects malformed numeric environment values", () => {
   assert.throws(() => readChannelRuntimeConfig({
     CLAUDE_CHANNEL_PORT: "8790abc",

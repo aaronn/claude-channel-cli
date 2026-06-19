@@ -26,7 +26,7 @@ export type TargetResolutionErrorCode =
   | "no_claude_targets"
   | "unknown_claude_target"
   | "multiple_claude_targets"
-  | "no_workspace_claude_target";
+  | "target_required";
 
 export class TargetResolutionError extends Error {
   readonly code: TargetResolutionErrorCode;
@@ -72,17 +72,9 @@ export async function resolveClaudeTarget(options: TargetResolutionOptions = {})
     return { endpoint: workspaceMatch, candidates, reason: "workspace" };
   }
 
-  if (endpoints.length === 1) {
-    throw new TargetResolutionError(
-      "no_workspace_claude_target",
-      "The only live Claude Code channel endpoint is outside this workspace. Specify a target to use it.",
-      candidates,
-    );
-  }
-
   throw new TargetResolutionError(
-    "multiple_claude_targets",
-    "Multiple Claude Code channel endpoints are running. Specify a target.",
+    "target_required",
+    "Specify a Claude Code channel target.",
     candidates,
   );
 }

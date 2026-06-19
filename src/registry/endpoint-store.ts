@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { chmod, mkdir, readFile, readdir, rename as renameFile, rm, writeFile } from "node:fs/promises";
+import { chmod, link as linkFile, mkdir, readFile, readdir, rename as renameFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { bridgeDir, ensureBridgeDir } from "../config/paths.js";
 import { createEndpointId } from "./endpoint-id.js";
@@ -14,8 +14,9 @@ import {
 import { isEndpointLive } from "./liveness.js";
 
 export const endpointsDir = path.join(bridgeDir, "endpoints");
+const TEMP_ENDPOINT_STALE_MS = 5 * 60_000;
 
-type EndpointStoreOptions = {
+export type EndpointStoreOptions = {
   dir?: string;
   now?: Date;
 };
@@ -77,20 +78,17 @@ async function writeEndpointRecord(record: EndpointRecord, options: EndpointWrit
   const file = endpointPath(record.endpoint_id, dir);
   const content = `${JSON.stringify(record, null, 2)}\n`;
 
-  if (options.exclusive) {
-    await writeFile(file, content, { mode: 0o600, flag: "wx" });
-    await chmod(file, 0o600);
-    return;
-  }
-
   const tempFile = path.join(dir, `.${record.endpoint_id}.${process.pid}.${randomUUID()}.tmp`);
   try {
     await writeFile(tempFile, content, { mode: 0o600, flag: "wx" });
     await chmod(tempFile, 0o600);
-    await renameFile(tempFile, file);
-  } catch (error) {
+    if (options.exclusive) {
+      await linkFile(tempFile, file);
+    } else {
+      await renameFile(tempFile, file);
+    }
+  } finally {
     await rm(tempFile, { force: true });
-    throw error;
   }
 }
 
@@ -127,6 +125,9 @@ async function readEndpointRecords(options: EndpointStoreOptions = {}): Promise<
     if (code === "ENOENT") return [];
     throw error;
   }
+
+  const now = options.now ?? new Date();
+  await Promise.all(names.map((name) => pruneStaleTempEndpointFile(dir, name, now)));
 
   const jsonNames = names.filter((name) => name.endsWith(".json"));
   const results = await Promise.all(jsonNames.map(async (name) => {
@@ -170,4 +171,20 @@ function isFileExistsError(error: unknown): boolean {
   return error instanceof Error &&
     "code" in error &&
     (error as NodeJS.ErrnoException).code === "EEXIST";
+}
+
+async function pruneStaleTempEndpointFile(dir: string, name: string, now = new Date()): Promise<void> {
+  if (!name.startsWith(".") || !name.endsWith(".tmp")) return;
+
+  const file = path.join(dir, name);
+  let fileStat: Awaited<ReturnType<typeof stat>>;
+  try {
+    fileStat = await stat(file);
+  } catch {
+    return;
+  }
+
+  if (now.getTime() - fileStat.mtime.getTime() >= TEMP_ENDPOINT_STALE_MS) {
+    await rm(file, { force: true });
+  }
 }

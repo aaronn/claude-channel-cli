@@ -34,7 +34,7 @@ export function readChannelRuntimeConfig(env: NodeJS.ProcessEnv = process.env): 
 }
 
 function parseDisplayNameEnv(value: string | undefined): EndpointDisplayName | undefined {
-  return value === undefined
+  return value === undefined || value.trim().length === 0
     ? undefined
     : normalizeEndpointDisplayName(value, "CLAUDE_CHANNEL_DISPLAY_NAME");
 }

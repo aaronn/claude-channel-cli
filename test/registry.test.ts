@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -139,6 +139,25 @@ test("endpoint store writes, lists, prunes invalid or stale records, and removes
 
     await removeEndpointRecord(live.endpoint_id, { dir });
     assert.deepEqual(await listLiveEndpoints({ dir, now: new Date("2026-06-01T00:00:30.000Z") }), []);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("endpoint store prunes stale temporary endpoint files without touching fresh writes", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "claude-channel-endpoints-"));
+  try {
+    const staleTemp = path.join(dir, ".ep_ABC234.123.stale.tmp");
+    const freshTemp = path.join(dir, ".ep_DEF567.123.fresh.tmp");
+    await writeFile(staleTemp, "stale", "utf8");
+    await writeFile(freshTemp, "fresh", "utf8");
+    const staleTime = new Date("2026-06-01T00:00:00.000Z");
+    await utimes(staleTemp, staleTime, staleTime);
+
+    assert.deepEqual(await listLiveEndpoints({ dir, now: new Date("2026-06-01T00:06:00.000Z") }), []);
+
+    const names = await readdir(dir);
+    assert.deepEqual(names, [".ep_DEF567.123.fresh.tmp"]);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -48,39 +48,41 @@ In another shell, after starting Claude Code with the channel enabled:
 
 ```sh
 claude-channel list
-claude-channel status
-claude-channel ask "From Codex: reply through complete_channel_request."
+claude-channel status --to ep_ABC234
+claude-channel ask --to ep_ABC234 "From Codex: reply through complete_channel_request."
 ```
 
 Ask for a response:
 
 ```sh
-claude-channel ask "From Codex: review this and complete the request."
+claude-channel ask --to ep_ABC234 "From Codex: review this and complete the request."
 ```
 
 `ask` defaults to a 30-minute timeout. Use `--output json` when a script needs the full response envelope:
 
 ```sh
-claude-channel ask --output json "From Codex: review this."
+claude-channel ask --to ep_ABC234 --output json "From Codex: review this."
 ```
 
 For long prompts, use stdin or an explicit prompt file:
 
 ```sh
-claude-channel ask-file - <<'EOF'
+claude-channel ask-file --to ep_ABC234 - <<'EOF'
 From Codex: /review the current branch for correctness, test coverage, and maintainability.
 Return the final review by calling complete_channel_request.
 EOF
 
-claude-channel ask-file prompts/review.md
+claude-channel ask-file --to ep_ABC234 prompts/review.md
 ```
 
 Timeouts can be configured per command or through the environment:
 
 ```sh
-claude-channel ask --timeout 45m "From Codex: take up to 45 minutes to review this."
-CLAUDE_CHANNEL_ASK_TIMEOUT_MS=2700000 claude-channel ask "From Codex: review this."
+claude-channel ask --to ep_ABC234 --timeout 45m "From Codex: take up to 45 minutes to review this."
+CLAUDE_CHANNEL_ASK_TIMEOUT_MS=2700000 claude-channel ask --to ep_ABC234 "From Codex: review this."
 ```
+
+If the targeted Claude Code process closes, pending asks are cancelled. If the process stays alive but stops consuming channel events, the caller waits until the ask timeout expires because the current Channels protocol does not expose a separate delivery acknowledgement.
 
 When multiple Claude Code sessions are running, give a session a human-friendly name:
 
@@ -118,7 +120,7 @@ Each channel-enabled Claude Code window registers a local endpoint under:
 ~/.claude-channel/endpoints/ep_<id>.json
 ```
 
-When one endpoint is live in the current workspace, `--to` is optional. If the only live endpoint is for a different workspace, or if more than one endpoint is plausible, commands fail closed and print candidates:
+When exactly one live endpoint belongs to the current project, `--to` is optional. Otherwise commands fail closed unless you pass a target with `--to` or set `CLAUDE_CHANNEL_TARGET`. Start with `claude-channel list`, then use an endpoint id, unique display name, project path, or list index from that output:
 
 ```sh
 claude-channel list
