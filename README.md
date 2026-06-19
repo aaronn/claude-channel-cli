@@ -18,17 +18,25 @@ This makes the `claude-channel` command available on your `PATH`.
 
 ## Start Claude Code
 
-Claude Channel is not approved by Anthropic's marketplace yet. For now, register the receiver-side MCP server once from the directory or project you'd like to use. This is what allows `claude-channel-cli` to find the right instance if you have multiple sessions open:
+Register the receiver-side MCP server once from the project where Claude Code should receive channel messages:
 
 ```sh
 cd ~/github/my_project/
 claude-channel setup-mcp
 ```
 
-Then start Claude Code from the project, or resume a thread (the explicit flag is needed until we're approved by Anthropic):
+Then start the Claude Code session you want to make reachable:
 
 ```sh
 claude --dangerously-load-development-channels server:claude-channel-cli
+```
+
+`setup-mcp` is saved in Claude Code's local project config. After you run it, plain `claude` may still start the MCP subprocess, but it is not the session you should target unless you started it with the channel flag. If `claude-channel list` shows more than one target, close the extra Claude Code session or choose the intended target with `--to`.
+
+To remove the saved project registration:
+
+```sh
+claude mcp remove "claude-channel-cli" -s local
 ```
 
 
@@ -162,7 +170,7 @@ npm run build
 npm link
 ```
 
-`npm link` makes the checkout's `claude-channel` and `claude-channel-server` binaries available on your `PATH`. Then register the linked server from the receiver project:
+`npm link` makes the checkout's `claude-channel` and `claude-channel-server` binaries available on your `PATH`. Then register the linked server from the receiver project and start the Claude Code session you want to make reachable:
 
 ```sh
 cd /path/to/receiver-project
