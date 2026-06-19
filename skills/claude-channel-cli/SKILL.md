@@ -9,11 +9,11 @@ Use the bundled Claude Channel CLI MCP tools to communicate with the user's live
 
 ## Workflow
 
-1. List available Claude targets with `list_claude_targets`. If there is one target, use it. If there are several, show the numbered candidates and ask which visible Claude Code window to use.
-2. Check the selected target with `status_claude_channel`, passing `target` when one was selected.
-3. Use `ask_claude`, passing `target` when needed.
+1. List available Claude targets with `list_claude_targets`. Pick the intended target's `endpoint_id`; if more than one target is listed, show the numbered candidates and ask which visible Claude Code window to use. Always carry the chosen `endpoint_id` into the next calls instead of relying on automatic selection.
+2. Check the selected target with `status_claude_channel`, passing the chosen `endpoint_id` as `target`.
+3. Use `ask_claude`, passing the chosen `endpoint_id` as `target`.
 4. For review-sized, complex, or high-effort Claude Code asks, expect replies to take several minutes and sometimes close to the 30-minute default timeout. Do not treat a quiet Claude Code session as failed before the configured timeout. Ask the user before using a longer timeout.
-5. If a tool returns `multiple_claude_targets`, ask the user to choose from `candidates`, then retry with that candidate's `endpoint_id`.
+5. If a tool returns `target_required` or `multiple_claude_targets`, choose the intended `endpoint_id` from `candidates`; ask the user if more than one candidate is plausible, then retry with that `endpoint_id`.
 6. If the MCP tools are unavailable in a development checkout, fall back to the `claude-channel` CLI.
 
 ## Rules
@@ -28,7 +28,7 @@ Use the bundled Claude Channel CLI MCP tools to communicate with the user's live
 - After `ask_claude` returns, use the structured `answer` field. Do not dump raw JSON unless debugging.
 - CLI fallback `ask` and `ask-file` print Claude's answer text by default. Use `--output json` only when the full response envelope is needed.
 - For very large CLI fallback reviews, redirect answer text to a visible file instead of relying on terminal output capture.
-- When multiple live targets exist, ask the user to choose from `candidates`; never guess from branch names, task names, terminal titles, or transcript names.
+- When a tool cannot resolve a single target and returns `candidates`, ask the user to choose from the candidates; never guess from branch names, task names, terminal titles, or transcript names.
 - Prefer endpoint ids for retries and scripts. Numeric list indexes are acceptable only for immediate human CLI fallback.
 - If `status_claude_channel` reports the channel is not reachable, tell the user the channel is not running and ask them to start Claude Code with the `claude-channel-cli` channel enabled.
 
