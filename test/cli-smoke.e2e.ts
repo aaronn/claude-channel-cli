@@ -119,7 +119,7 @@ test("built CLI renames a live channel endpoint", async () => {
       res.end(JSON.stringify({
         ok: true,
         endpoint_id: "ep_ABC234",
-        display_name: "review-left",
+        display_name: "review left",
       }));
     });
   });
@@ -140,7 +140,8 @@ test("built CLI renames a live channel endpoint", async () => {
       "rename",
       "--to",
       "ep_ABC234",
-      "review-left",
+      "review",
+      "left",
     ], {
       cwd: repoDir,
       env: {
@@ -152,14 +153,14 @@ test("built CLI renames a live channel endpoint", async () => {
 
     assert.equal(result.code, 0);
     assert.equal(result.stderr, "");
-    assert.equal(result.stdout, "Renamed ep_ABC234 to review-left\n");
+    assert.equal(result.stdout, "Renamed ep_ABC234 to review left\n");
     assert.deepEqual(received, {
       method: "PATCH",
       url: "/display-name",
       authorization: "Bearer smoke-token",
       sender: undefined,
       contentType: "application/json; charset=utf-8",
-      body: JSON.stringify({ display_name: "review-left" }),
+      body: JSON.stringify({ display_name: "review left" }),
     });
   } finally {
     await closeServer(server);

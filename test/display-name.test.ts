@@ -16,14 +16,23 @@ test("normalizeEndpointDisplayName rejects empty, numeric, control, and long nam
   assert.throws(() => normalizeEndpointDisplayName("2"), /reserved target name/);
   assert.throws(() => normalizeEndpointDisplayName("001"), /reserved target name/);
   assert.throws(() => normalizeEndpointDisplayName("ep_ABC234"), /reserved target name/);
-  assert.throws(() => normalizeEndpointDisplayName("bad\nname"), /control characters/);
-  assert.throws(() => normalizeEndpointDisplayName("\nreview"), /control characters/);
-  assert.throws(() => normalizeEndpointDisplayName("review\t"), /control characters/);
-  assert.throws(() => normalizeEndpointDisplayName("bad\u0085name"), /control characters/);
+  assert.throws(() => normalizeEndpointDisplayName("bad\nname"), /control or formatting characters/);
+  assert.throws(() => normalizeEndpointDisplayName("\nreview"), /control or formatting characters/);
+  assert.throws(() => normalizeEndpointDisplayName("review\t"), /control or formatting characters/);
+  assert.throws(() => normalizeEndpointDisplayName("bad\u0085name"), /control or formatting characters/);
+  assert.throws(() => normalizeEndpointDisplayName("bad\u202Ename"), /control or formatting characters/);
+  assert.throws(() => normalizeEndpointDisplayName("\u200B"), /control or formatting characters/);
+  assert.throws(() => normalizeEndpointDisplayName("bad\u2028name"), /control or formatting characters/);
   assert.throws(
     () => normalizeEndpointDisplayName("x".repeat(MAX_ENDPOINT_DISPLAY_NAME_LENGTH + 1)),
     /64 characters or fewer/,
   );
+});
+
+test("normalizeEndpointDisplayName accepts visible unicode names", () => {
+  assert.equal(normalizeEndpointDisplayName("révision 左 ✅"), "révision 左 ✅");
+  assert.equal(normalizeEndpointDisplayName("خ\u200Cوب"), "خ\u200Cوب");
+  assert.equal(normalizeEndpointDisplayName("review 👩\u200D💻"), "review 👩\u200D💻");
 });
 
 test("displayNameForProjectDir returns a valid safe default", () => {

@@ -1,79 +1,81 @@
 import path from "node:path";
-import { isEndpointId } from "./endpoint-id.js";
+import { isReservedTargetToken } from "./target-token.js";
 
 export const MAX_ENDPOINT_DISPLAY_NAME_LENGTH = 64;
+declare const endpointDisplayNameBrand: unique symbol;
+
+export type EndpointDisplayName = string & { readonly [endpointDisplayNameBrand]: true };
 
 const DEFAULT_DISPLAY_NAME = "Claude Code";
 const RESERVED_TARGET_SUFFIX = "-project";
+const UNSAFE_BASE_DISPLAY_CHARACTER_RE = /[\p{Cc}\p{Zl}\p{Zp}]/u;
+const FORMAT_CHARACTER_RE = /\p{Cf}/u;
+const ZERO_WIDTH_NON_JOINER = 0x200c;
+const ZERO_WIDTH_JOINER = 0x200d;
 
-export function normalizeEndpointDisplayName(value: string): string {
-  if (hasControlCharacter(value)) {
-    throw new Error("display_name must not contain control characters");
+export function normalizeEndpointDisplayName(value: string, label = "display_name"): EndpointDisplayName {
+  if (hasUnsafeDisplayCharacter(value)) {
+    throw new Error(`${label} must not contain control or formatting characters`);
   }
   const normalized = value.trim();
   if (normalized.length === 0) {
-    throw new Error("display_name must be a non-empty string");
+    throw new Error(`${label} must be a non-empty string`);
   }
-  if (isReservedTargetName(normalized)) {
-    throw new Error("display_name must not be a reserved target name");
+  if (isReservedTargetToken(normalized)) {
+    throw new Error(`${label} must not be a reserved target name`);
   }
   if (displayNameLength(normalized) > MAX_ENDPOINT_DISPLAY_NAME_LENGTH) {
-    throw new Error(`display_name must be ${MAX_ENDPOINT_DISPLAY_NAME_LENGTH} characters or fewer`);
+    throw new Error(`${label} must be ${MAX_ENDPOINT_DISPLAY_NAME_LENGTH} characters or fewer`);
   }
-  return normalized;
+  return normalized as EndpointDisplayName;
 }
 
-export function displayNameForProjectDir(projectDir: string): string {
+export function displayNameForProjectDir(projectDir: string): EndpointDisplayName {
   const raw = path.basename(projectDir) || projectDir || DEFAULT_DISPLAY_NAME;
   return safeDisplayNameDefault(raw);
 }
 
-export function coerceLegacyEndpointDisplayName(value: string, projectDir: string): string {
-  const sanitized = replaceControlCharacters(value).trim();
+export function coerceLegacyEndpointDisplayName(value: string, projectDir: string): EndpointDisplayName {
+  const sanitized = replaceUnsafeDisplayCharacters(value).trim();
   return sanitized ? safeDisplayNameDefault(sanitized) : displayNameForProjectDir(projectDir);
 }
 
-function safeDisplayNameDefault(value: string): string {
-  const fallback = replaceControlCharacters(value).trim() || DEFAULT_DISPLAY_NAME;
+function safeDisplayNameDefault(value: string): EndpointDisplayName {
+  const fallback = replaceUnsafeDisplayCharacters(value).trim() || DEFAULT_DISPLAY_NAME;
   const truncated = displayNameLength(fallback) <= MAX_ENDPOINT_DISPLAY_NAME_LENGTH
     ? fallback
     : [...fallback].slice(0, MAX_ENDPOINT_DISPLAY_NAME_LENGTH).join("").trim() || DEFAULT_DISPLAY_NAME;
-  return isReservedTargetName(truncated) ? displayNameForReservedTargetName(truncated) : truncated;
+  return (
+    isReservedTargetToken(truncated)
+      ? displayNameForReservedTargetToken(truncated)
+      : truncated
+  ) as EndpointDisplayName;
 }
 
 function displayNameLength(value: string): number {
   return [...value].length;
 }
 
-function isListIndex(value: string): boolean {
-  return /^\d+$/.test(value);
-}
-
-function isReservedTargetName(value: string): boolean {
-  return isListIndex(value) || isEndpointId(value);
-}
-
-function displayNameForReservedTargetName(value: string): string {
+function displayNameForReservedTargetToken(value: string): string {
   const prefixLength = MAX_ENDPOINT_DISPLAY_NAME_LENGTH - RESERVED_TARGET_SUFFIX.length;
   const prefix = [...value].slice(0, prefixLength).join("").trim() || DEFAULT_DISPLAY_NAME;
   return `${prefix}${RESERVED_TARGET_SUFFIX}`;
 }
 
-function hasControlCharacter(value: string): boolean {
-  for (const character of value) {
-    if (isControlCharacter(character)) return true;
-  }
-  return false;
-}
-
-function replaceControlCharacters(value: string): string {
+function replaceUnsafeDisplayCharacters(value: string): string {
   return [...value]
-    .map((character) => isControlCharacter(character) ? " " : character)
+    .map((character) => isUnsafeDisplayCharacter(character) ? " " : character)
     .join("");
 }
 
-function isControlCharacter(character: string): boolean {
+function hasUnsafeDisplayCharacter(value: string): boolean {
+  return [...value].some(isUnsafeDisplayCharacter);
+}
+
+function isUnsafeDisplayCharacter(character: string): boolean {
+  if (UNSAFE_BASE_DISPLAY_CHARACTER_RE.test(character)) return true;
+  if (!FORMAT_CHARACTER_RE.test(character)) return false;
+
   const codePoint = character.codePointAt(0);
-  return codePoint !== undefined &&
-    (codePoint <= 0x1f || codePoint === 0x7f || (codePoint >= 0x80 && codePoint <= 0x9f));
+  return codePoint !== ZERO_WIDTH_NON_JOINER && codePoint !== ZERO_WIDTH_JOINER;
 }

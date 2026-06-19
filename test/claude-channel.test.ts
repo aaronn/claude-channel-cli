@@ -54,14 +54,13 @@ test("formatReplyRequiredChannelContent frames request content with completion i
   const content = "\n  review this\n    keep indentation\n";
   const framed = formatReplyRequiredChannelContent("req_abc123", content);
 
-  assert.match(framed, /^Channel Handling Instructions:/);
+  assert.ok(framed.startsWith(content));
+  assert.match(framed, /\n\n———\n\nChannel Handling Instructions:/);
   assert.match(framed, /request_id="req_abc123"/);
   assert.match(framed, /complete_channel_request/);
   assert.match(framed, /channel sender/);
   assert.match(framed, /A normal Claude Code reply is not delivered/);
-  assert.match(framed, /Incoming Channel Request:\n/);
   assert.doesNotMatch(framed, /Codex/);
-  assert.ok(framed.endsWith(content));
 });
 
 test("formatReplyRequiredChannelContent rejects invalid request ids", () => {

@@ -231,7 +231,7 @@ test("PATCH /display-name validates request JSON and display names", async () =>
     assert.equal(endpointId.status, 400);
     assert.match(stringField(await responseJsonObject(endpointId), "error"), /reserved target name/);
     assert.equal(control.status, 400);
-    assert.match(stringField(await responseJsonObject(control), "error"), /control characters/);
+    assert.match(stringField(await responseJsonObject(control), "error"), /control or formatting characters/);
     assert.equal(oversized.status, 400);
     assert.match(stringField(await responseJsonObject(oversized), "error"), /64 characters or fewer/);
   } finally {
@@ -267,8 +267,8 @@ test("PATCH /display-name enforces body size and method", async () => {
 
     assert.equal(oversized.status, 413);
     assert.match(stringField(await responseJsonObject(oversized), "error"), /request body exceeds 3 bytes/);
-    assert.equal(wrongMethod.status, 405);
-    assert.equal(await wrongMethod.text(), "method not allowed\n");
+    assert.equal(wrongMethod.status, 404);
+    assert.equal(await wrongMethod.text(), "not found\n");
   } finally {
     await server.close();
   }

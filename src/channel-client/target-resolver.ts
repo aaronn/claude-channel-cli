@@ -6,6 +6,7 @@ import {
   toEndpointCandidates,
 } from "../registry/endpoint-record.js";
 import { listLiveEndpoints } from "../registry/endpoint-store.js";
+import { isListIndexTargetToken } from "../registry/target-token.js";
 
 export type TargetResolutionOptions = {
   target?: string;
@@ -18,10 +19,14 @@ export type TargetResolutionOptions = {
 export type TargetResolution = {
   endpoint: EndpointRecord;
   candidates: EndpointCandidate[];
-  reason: "explicit" | "env" | "single" | "workspace";
+  reason: "explicit" | "env" | "workspace";
 };
 
-export type TargetResolutionErrorCode = "no_claude_targets" | "unknown_claude_target" | "multiple_claude_targets";
+export type TargetResolutionErrorCode =
+  | "no_claude_targets"
+  | "unknown_claude_target"
+  | "multiple_claude_targets"
+  | "no_workspace_claude_target";
 
 export class TargetResolutionError extends Error {
   readonly code: TargetResolutionErrorCode;
@@ -62,13 +67,17 @@ export async function resolveClaudeTarget(options: TargetResolutionOptions = {})
     };
   }
 
-  if (endpoints.length === 1) {
-    return { endpoint: endpoints[0], candidates, reason: "single" };
-  }
-
   const workspaceMatch = uniqueWorkspaceMatch(endpoints, options.cwd ?? process.cwd());
   if (workspaceMatch) {
     return { endpoint: workspaceMatch, candidates, reason: "workspace" };
+  }
+
+  if (endpoints.length === 1) {
+    throw new TargetResolutionError(
+      "no_workspace_claude_target",
+      "The only live Claude Code channel endpoint is outside this workspace. Specify a target to use it.",
+      candidates,
+    );
   }
 
   throw new TargetResolutionError(
@@ -83,7 +92,7 @@ function resolveNamedTarget(
   endpoints: EndpointRecord[],
   candidates: EndpointCandidate[],
 ): EndpointRecord {
-  const byIndex = /^\d+$/.test(target) ? endpoints[Number.parseInt(target, 10) - 1] : undefined;
+  const byIndex = isListIndexTargetToken(target) ? endpoints[Number.parseInt(target, 10) - 1] : undefined;
   if (byIndex) return byIndex;
 
   const byEndpointId = endpoints.find((endpoint) => endpoint.endpoint_id === target);

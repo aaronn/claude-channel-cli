@@ -70,13 +70,13 @@ test("createEndpointRecord rejects explicitly empty display names", () => {
 test("parseEndpointRecord rejects malformed records", () => {
   assert.throws(() => parseEndpointRecord("{}", "endpoint"), /schema_version must be 1/);
   assert.throws(() => parseEndpointRecord("{", "endpoint"), /expected JSON object/);
-  assert.throws(
-    () => parseEndpointRecord(JSON.stringify({ ...appRecord(), display_name: " " }), "endpoint"),
-    /display_name must be a non-empty string/,
-  );
 });
 
 test("parseEndpointRecord preserves legacy records with now-reserved display names", () => {
+  assert.equal(
+    parseEndpointRecord(JSON.stringify({ ...appRecord(), display_name: " " })).display_name,
+    "app",
+  );
   assert.equal(
     parseEndpointRecord(JSON.stringify({ ...appRecord(), project_dir: "/repo/123", display_name: "123" })).display_name,
     "123-project",

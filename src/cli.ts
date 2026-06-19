@@ -161,10 +161,10 @@ program
   .command("rename")
   .description("Rename a live Claude Code channel endpoint.")
   .requiredOption("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
-  .argument("<display-name>", "New display name.")
-  .action(async (displayName: string, options: RenameOptions) => {
+  .argument("<display-name...>", "New display name.")
+  .action(async (parts: string[], options: RenameOptions) => {
     try {
-      await rename(displayName, options);
+      await rename(parts.join(" "), options);
     } catch (error) {
       fail(error);
     }

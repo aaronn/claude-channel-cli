@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readChannelStatus } from "../src/channel-client/status.js";
+import { normalizeEndpointDisplayName } from "../src/registry/display-name.js";
 import type { EndpointRecord } from "../src/registry/endpoint-record.js";
 
 const endpoint: EndpointRecord = {
@@ -10,7 +11,7 @@ const endpoint: EndpointRecord = {
   port: 8788,
   pid: 123,
   project_dir: "/repo/app",
-  display_name: "app",
+  display_name: normalizeEndpointDisplayName("app"),
   started_at: "2026-06-01T00:00:00.000Z",
   last_seen_at: "2026-06-01T00:00:01.000Z",
 };
@@ -30,6 +31,7 @@ function healthError(health: unknown): string {
 test("readChannelStatus reports healthy channel", async () => {
   const result = await readChannelStatus({
     endpoints: [endpoint],
+    cwd: "/repo/app",
     fetchFn: async (url, init) => {
       assert.equal(url, "http://127.0.0.1:8788/health");
       assert.deepEqual(init, { method: "GET" });
@@ -45,6 +47,7 @@ test("readChannelStatus reports healthy channel", async () => {
 test("readChannelStatus reports unreachable channel", async () => {
   const result = await readChannelStatus({
     endpoints: [endpoint],
+    cwd: "/repo/app",
     fetchFn: async () => {
       throw new Error("connect ECONNREFUSED");
     },
@@ -58,6 +61,7 @@ test("readChannelStatus reports unreachable channel", async () => {
 test("readChannelStatus reports invalid health JSON", async () => {
   const result = await readChannelStatus({
     endpoints: [endpoint],
+    cwd: "/repo/app",
     fetchFn: async () => new Response("not json", { status: 200 }),
   });
 
@@ -73,6 +77,7 @@ test("readChannelStatus reports invalid health JSON", async () => {
 test("readChannelStatus reports unhealthy JSON", async () => {
   const result = await readChannelStatus({
     endpoints: [endpoint],
+    cwd: "/repo/app",
     fetchFn: async () => new Response(JSON.stringify({ ok: false }), { status: 200 }),
   });
 

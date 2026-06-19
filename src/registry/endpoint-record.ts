@@ -2,6 +2,7 @@ import { isEndpointId } from "./endpoint-id.js";
 import {
   coerceLegacyEndpointDisplayName,
   displayNameForProjectDir,
+  type EndpointDisplayName,
   normalizeEndpointDisplayName,
 } from "./display-name.js";
 
@@ -12,7 +13,7 @@ export type EndpointRecord = {
   port: number;
   pid: number;
   project_dir: string;
-  display_name: string;
+  display_name: EndpointDisplayName;
   started_at: string;
   last_seen_at: string;
 };
@@ -106,10 +107,7 @@ export function parseEndpointRecord(raw: string, source = "endpoint record"): En
   if (typeof record.display_name !== "string") {
     throw new Error(`${source} is invalid: display_name must be a non-empty string`);
   }
-  if (record.display_name.trim().length === 0) {
-    throw new Error(`${source} is invalid: display_name must be a non-empty string`);
-  }
-  let displayName: string;
+  let displayName: EndpointDisplayName;
   try {
     displayName = normalizeEndpointDisplayName(record.display_name);
   } catch {

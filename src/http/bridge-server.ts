@@ -49,11 +49,7 @@ async function handleHttpRequest(
       return;
     }
 
-    if (url.pathname === "/display-name") {
-      if (req.method !== "PATCH") {
-        sendText(res, 405, "method not allowed\n");
-        return;
-      }
+    if (req.method === "PATCH" && url.pathname === "/display-name") {
       await handleDisplayName(req, res, options);
       return;
     }

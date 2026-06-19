@@ -31,7 +31,7 @@ Then start the Claude Code session you want to make reachable:
 claude --dangerously-load-development-channels server:claude-channel-cli
 ```
 
-`setup-mcp` is saved in Claude Code's local project config. After you run it, plain `claude` may still start the MCP subprocess, but it is not the session you should target unless you started it with the channel flag. If `claude-channel list` shows more than one target, close the extra Claude Code session or choose the intended target with `--to`.
+`setup-mcp` is saved in Claude Code's local project config. After you run it, plain `claude` may still start the MCP subprocess, but it will not register a usable channel target unless the session was started with the channel flag. If `claude-channel list` shows more than one target, close the extra Claude Code session or choose the intended target with `--to`.
 
 To remove the saved project registration:
 
@@ -116,7 +116,7 @@ Each channel-enabled Claude Code window registers a local endpoint under:
 ~/.claude-channel/endpoints/ep_<id>.json
 ```
 
-When exactly one endpoint is live, `--to` is optional. When more than one endpoint is live, commands fail closed and print candidates:
+When one endpoint is live in the current workspace, `--to` is optional. If the only live endpoint is for a different workspace, or if more than one endpoint is plausible, commands fail closed and print candidates:
 
 ```sh
 claude-channel list
@@ -134,7 +134,7 @@ claude-channel ask --to review-left "From Codex: review this branch."
 ```
 
 Duplicate display names are allowed but remain ambiguous; use an endpoint id from `claude-channel list` if a name matches more than one live session.
-Display names cannot be only digits or look like endpoint ids, because numeric targets and endpoint ids are reserved for targeting.
+Display names cannot be only digits, look like endpoint ids, or contain control/formatting characters, because numeric targets, endpoint ids, and invisible text are reserved for safe targeting.
 
 For scripted launches, set the startup display name before starting Claude Code:
 

@@ -13,11 +13,13 @@ test("readChannelRuntimeConfig uses numeric environment values", () => {
     CLAUDE_CHANNEL_PORT: "8790",
     CLAUDE_CHANNEL_MAX_BODY_BYTES: "2048",
     CLAUDE_CHANNEL_ASK_TIMEOUT_MS: "600000",
+    CLAUDE_CHANNEL_DISPLAY_NAME: " review-left ",
   }), {
     host: "127.0.0.2",
     port: 8790,
     maxBodyBytes: 2048,
     defaultAskTimeoutMs: 600_000,
+    displayName: "review-left",
   });
 });
 
@@ -31,6 +33,7 @@ test("readChannelRuntimeConfig uses defaults when numeric environment values are
     port: DEFAULT_CHANNEL_PORT,
     maxBodyBytes: DEFAULT_MAX_BODY_BYTES,
     defaultAskTimeoutMs: DEFAULT_ASK_TIMEOUT_MS,
+    displayName: undefined,
   });
 });
 
@@ -44,4 +47,10 @@ test("readChannelRuntimeConfig rejects malformed numeric environment values", ()
   assert.throws(() => readChannelRuntimeConfig({
     CLAUDE_CHANNEL_ASK_TIMEOUT_MS: "-1",
   }), /CLAUDE_CHANNEL_ASK_TIMEOUT_MS must be a positive integer/);
+  assert.throws(() => readChannelRuntimeConfig({
+    CLAUDE_CHANNEL_DISPLAY_NAME: "5",
+  }), /CLAUDE_CHANNEL_DISPLAY_NAME must not be a reserved target name/);
+  assert.throws(() => readChannelRuntimeConfig({
+    CLAUDE_CHANNEL_DISPLAY_NAME: "bad\u202Ename",
+  }), /CLAUDE_CHANNEL_DISPLAY_NAME must not contain control or formatting characters/);
 });

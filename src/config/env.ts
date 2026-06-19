@@ -1,4 +1,5 @@
 import { parseNonNegativeIntegerEnv, parsePositiveIntegerEnv } from "../validation.js";
+import { normalizeEndpointDisplayName, type EndpointDisplayName } from "../registry/display-name.js";
 import {
   DEFAULT_ASK_TIMEOUT_MS,
   DEFAULT_CHANNEL_HOST,
@@ -11,6 +12,7 @@ export type ChannelRuntimeConfig = {
   port: number;
   maxBodyBytes: number;
   defaultAskTimeoutMs: number;
+  displayName?: EndpointDisplayName;
 };
 
 export function readChannelRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ChannelRuntimeConfig {
@@ -27,5 +29,12 @@ export function readChannelRuntimeConfig(env: NodeJS.ProcessEnv = process.env): 
       "CLAUDE_CHANNEL_ASK_TIMEOUT_MS",
       DEFAULT_ASK_TIMEOUT_MS,
     ),
+    displayName: parseDisplayNameEnv(env.CLAUDE_CHANNEL_DISPLAY_NAME),
   };
+}
+
+function parseDisplayNameEnv(value: string | undefined): EndpointDisplayName | undefined {
+  return value === undefined
+    ? undefined
+    : normalizeEndpointDisplayName(value, "CLAUDE_CHANNEL_DISPLAY_NAME");
 }
