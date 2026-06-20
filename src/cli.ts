@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { askClaude } from "./channel-client/client.js";
+import { askClaude, renameClaudeDisplayName } from "./channel-client/client.js";
 import { readChannelStatus } from "./channel-client/status.js";
 import { TargetResolutionError } from "./channel-client/target-resolver.js";
 import { resolveAskTimeoutMs } from "./channel-client/timeout.js";
@@ -33,6 +33,10 @@ type AskOptions = ChannelTargetOptions & {
 
 type ListOptions = {
   json?: boolean;
+};
+
+type RenameOptions = {
+  to: string;
 };
 
 type SetupMcpCommandOptions = {
@@ -80,6 +84,11 @@ async function ask(message: string, options: AskOptions): Promise<void> {
   } finally {
     feedback?.stop();
   }
+}
+
+async function rename(displayName: string, options: RenameOptions): Promise<void> {
+  const result = await renameClaudeDisplayName(displayName, { target: options.to });
+  process.stdout.write(`Renamed ${result.target} to ${result.display_name}\n`);
 }
 
 async function setupMcpCommand(options: SetupMcpCommandOptions): Promise<void> {
@@ -179,6 +188,19 @@ program
   .action(async (file: string, options: AskOptions) => {
     try {
       await ask(await readPromptInput(file), options);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+program
+  .command("rename")
+  .description("Rename a live Claude Code channel target.")
+  .requiredOption("--to <target>", "Claude Code endpoint id, unique display name, project path, or list index.")
+  .argument("<display-name...>", "New display name.")
+  .action(async (parts: string[], options: RenameOptions) => {
+    try {
+      await rename(parts.join(" "), options);
     } catch (error) {
       fail(error);
     }

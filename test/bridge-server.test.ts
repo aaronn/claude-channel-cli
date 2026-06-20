@@ -31,6 +31,11 @@ async function startServer(
     maxBodyBytes: 1024,
     defaultAskTimeoutMs: 100,
     channel,
+    endpoint: {
+      renameDisplayName: async (displayName) => ({
+        display_name: displayName.trim(),
+      }),
+    },
     pendingRequests,
     ...options,
   });
@@ -81,6 +86,25 @@ async function responseJsonObject(response: Response): Promise<Record<string, un
   assert.ok(body);
   assert.equal(Array.isArray(body), false);
   return body as Record<string, unknown>;
+}
+
+function patchDisplayName(
+  baseUrl: string,
+  body: unknown,
+  token: string | null = "secret",
+): Promise<Response> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json; charset=utf-8",
+  };
+  if (token !== null) {
+    headers.authorization = `Bearer ${token}`;
+  }
+
+  return fetch(`${baseUrl}/display-name`, {
+    method: "PATCH",
+    headers,
+    body: typeof body === "string" ? body : JSON.stringify(body),
+  });
 }
 
 function stringField(body: Record<string, unknown>, key: string): string {
@@ -376,6 +400,67 @@ test("POST /ask returns 504 when Claude does not complete the request", async ()
 
     assert.equal(response.status, 504);
     assert.match(stringField(body, "error"), /timed out waiting for Claude Code reply/);
+  } finally {
+    await server.close();
+  }
+});
+
+test("PATCH /display-name renames the endpoint through the bridge owner", async () => {
+  const renamed: string[] = [];
+  const server = await startServer({
+    endpoint: {
+      renameDisplayName: async (displayName) => {
+        renamed.push(displayName);
+        return { display_name: displayName };
+      },
+    },
+  });
+
+  try {
+    const response = await patchDisplayName(server.baseUrl, { display_name: " review-left " });
+    const body = await responseJsonObject(response);
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(body, {
+      ok: true,
+      display_name: "review-left",
+    });
+    assert.deepEqual(renamed, ["review-left"]);
+  } finally {
+    await server.close();
+  }
+});
+
+test("PATCH /display-name rejects requests without the expected bearer token", async () => {
+  const server = await startServer();
+  try {
+    const responses = await Promise.all([
+      patchDisplayName(server.baseUrl, { display_name: "review-left" }, null),
+      patchDisplayName(server.baseUrl, { display_name: "review-left" }, "wrong"),
+    ]);
+
+    for (const response of responses) {
+      assert.equal(response.status, 401);
+      assert.equal(await response.text(), "unauthorized\n");
+    }
+  } finally {
+    await server.close();
+  }
+});
+
+test("PATCH /display-name validates request JSON and display names", async () => {
+  const server = await startServer();
+  try {
+    const malformed = await patchDisplayName(server.baseUrl, "{");
+    const missing = await patchDisplayName(server.baseUrl, {});
+    const reserved = await patchDisplayName(server.baseUrl, { display_name: "ep_ABC234" });
+
+    assert.equal(malformed.status, 400);
+    assert.equal(stringField(await responseJsonObject(malformed), "error"), "invalid JSON request body");
+    assert.equal(missing.status, 400);
+    assert.match(stringField(await responseJsonObject(missing), "error"), /display_name must be a non-empty string/);
+    assert.equal(reserved.status, 400);
+    assert.match(stringField(await responseJsonObject(reserved), "error"), /reserved target name/);
   } finally {
     await server.close();
   }

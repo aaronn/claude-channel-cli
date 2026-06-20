@@ -111,6 +111,21 @@ CLAUDE_CHANNEL_TARGET=ep_ABC234 claude-channel status
 
 `--to` accepts an endpoint id, a unique display name, a project path, or a numeric index from `claude-channel list`.
 
+Use `rename` to make same-project sessions easy to target:
+
+```sh
+claude-channel rename --to ep_ABC234 review-left
+claude-channel ask --to review-left "From Codex: review this diff."
+```
+
+For scripted launches, set the startup display name before starting Claude Code:
+
+```sh
+CLAUDE_CHANNEL_DISPLAY_NAME=review-left claude --dangerously-load-development-channels server:claude-channel-cli
+```
+
+Display names cannot be only digits, look like endpoint ids, or contain control/formatting characters, because numeric targets, endpoint ids, and invisible text are reserved for safe targeting.
+
 
 ## Security
 

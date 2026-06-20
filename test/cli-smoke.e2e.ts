@@ -95,6 +95,77 @@ test("built CLI sends an ask request through the local channel registry", async 
   }
 });
 
+test("built CLI renames a live channel endpoint", async () => {
+  const repoDir = process.cwd();
+  const tempHome = await mkdtemp(path.join(tmpdir(), "claude-channel-cli-smoke-"));
+  let received: ReceivedRequest | undefined;
+
+  const server = http.createServer((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer | string) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    req.on("end", () => {
+      received = {
+        method: req.method,
+        url: req.url,
+        authorization: req.headers.authorization,
+        sender: req.headers["x-claude-channel-sender"],
+        contentType: req.headers["content-type"],
+        body: Buffer.concat(chunks).toString("utf8"),
+      };
+
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({
+        ok: true,
+        display_name: "review-left",
+      }));
+    });
+  });
+
+  try {
+    await listen(server);
+    const address = server.address();
+    assert.equal(typeof address, "object");
+    assert.ok(address);
+
+    await writeChannelFixture({
+      home: tempHome,
+      port: (address as AddressInfo).port,
+      projectDir: repoDir,
+    });
+
+    const result = await runCli([
+      "rename",
+      "--to",
+      "ep_ABC234",
+      "review-left",
+    ], {
+      cwd: repoDir,
+      env: {
+        ...process.env,
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      },
+    });
+
+    assert.equal(result.code, 0);
+    assert.equal(result.stderr, "");
+    assert.equal(result.stdout, "Renamed ep_ABC234 to review-left\n");
+    assert.deepEqual(received, {
+      method: "PATCH",
+      url: "/display-name",
+      authorization: "Bearer smoke-token",
+      sender: undefined,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({ display_name: "review-left" }),
+    });
+  } finally {
+    await closeServer(server);
+    await rm(tempHome, { recursive: true, force: true });
+  }
+});
+
 async function writeChannelFixture(input: {
   home: string;
   port: number;

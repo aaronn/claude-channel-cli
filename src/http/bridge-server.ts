@@ -2,8 +2,9 @@ import http from "node:http";
 import { errorMessage, HttpError, RequestTimeoutError } from "../errors.js";
 import { PendingRequests } from "../pending-requests.js";
 import { createRequestId, normalizeChannelSender, type ChannelEventMeta } from "../protocol.js";
+import { normalizeEndpointDisplayName } from "../registry/display-name.js";
 import { isAuthorized } from "../security/auth.js";
-import { parsePositiveIntegerString } from "../validation.js";
+import { parsePositiveIntegerString, readRecordObject, readRequiredString } from "../validation.js";
 import { messageFromBody, readBody } from "./body.js";
 
 export type ChannelEmitter = {
@@ -16,6 +17,9 @@ export type BridgeHttpServerOptions = {
   maxBodyBytes: number;
   defaultAskTimeoutMs: number;
   channel: ChannelEmitter;
+  endpoint: {
+    renameDisplayName: (displayName: string) => Promise<{ display_name: string }>;
+  };
   pendingRequests: PendingRequests;
 };
 
@@ -43,6 +47,11 @@ async function handleHttpRequest(
       return;
     }
 
+    if (req.method === "PATCH" && url.pathname === "/display-name") {
+      await handleDisplayNameUpdate(req, res, options);
+      return;
+    }
+
     sendText(res, 404, "not found\n");
   } catch (error) {
     const status = statusForError(error);
@@ -52,6 +61,24 @@ async function handleHttpRequest(
       sendJson(res, status, { ok: false, error: message });
     }
   }
+}
+
+async function handleDisplayNameUpdate(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  options: BridgeHttpServerOptions,
+): Promise<void> {
+  if (!isAuthorized(req, options.token)) {
+    sendText(res, 401, "unauthorized\n");
+    return;
+  }
+
+  const displayName = await readDisplayName(req, options.maxBodyBytes);
+  const result = await options.endpoint.renameDisplayName(displayName);
+  sendJson(res, 200, {
+    ok: true,
+    display_name: result.display_name,
+  });
 }
 
 async function handleAsk(
@@ -135,6 +162,25 @@ async function readMessage(req: http.IncomingMessage, maxBodyBytes: number): Pro
     throw new HttpError(400, "message body is required");
   }
   return content;
+}
+
+async function readDisplayName(req: http.IncomingMessage, maxBodyBytes: number): Promise<string> {
+  const body = await readBody(req, maxBodyBytes);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body) as unknown;
+  } catch {
+    throw new HttpError(400, "invalid JSON request body");
+  }
+
+  try {
+    return normalizeEndpointDisplayName(readRequiredString(
+      readRecordObject(parsed, "display name request body must be a JSON object"),
+      "display_name",
+    ));
+  } catch (error) {
+    throw new HttpError(400, errorMessage(error));
+  }
 }
 
 function parseTimeout(value: string | null, fallback: number): number {

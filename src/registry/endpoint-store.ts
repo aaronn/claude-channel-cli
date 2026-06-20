@@ -7,8 +7,10 @@ import {
   type EndpointRecord,
   parseEndpointRecord,
   refreshEndpointRecord,
+  renameEndpointRecord,
   sortEndpointRecords,
 } from "./endpoint-record.js";
+import type { EndpointDisplayName } from "./display-name.js";
 import { isEndpointLive } from "./liveness.js";
 
 export const endpointsDir = path.join(bridgeDir, "endpoints");
@@ -43,6 +45,7 @@ export async function createUniqueEndpointRecord(input: {
   port: number;
   pid: number;
   projectDir: string;
+  displayName?: EndpointDisplayName;
   now?: Date;
 }, options: EndpointStoreOptions = {}): Promise<EndpointRecord> {
   for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -52,6 +55,7 @@ export async function createUniqueEndpointRecord(input: {
       port: input.port,
       pid: input.pid,
       projectDir: input.projectDir,
+      displayName: input.displayName,
       now: input.now,
     });
 
@@ -85,6 +89,16 @@ export async function refreshEndpoint(
   const refreshed = refreshEndpointRecord(record, options.now ?? new Date());
   await writeEndpointRecord(refreshed, options);
   return refreshed;
+}
+
+export async function renameEndpoint(
+  record: EndpointRecord,
+  displayName: string,
+  options: EndpointStoreOptions = {},
+): Promise<EndpointRecord> {
+  const renamed = renameEndpointRecord(record, displayName);
+  await writeEndpointRecord(renamed, options);
+  return renamed;
 }
 
 export async function removeEndpointRecord(endpointId: string, options: EndpointStoreOptions = {}): Promise<void> {

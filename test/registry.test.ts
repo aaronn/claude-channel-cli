@@ -4,10 +4,17 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { createEndpointId, isEndpointId } from "../src/registry/endpoint-id.js";
-import { createEndpointRecord, parseEndpointRecord, toEndpointCandidates, type EndpointRecord } from "../src/registry/endpoint-record.js";
+import {
+  createEndpointRecord,
+  parseEndpointRecord,
+  renameEndpointRecord,
+  toEndpointCandidates,
+  type EndpointRecord,
+} from "../src/registry/endpoint-record.js";
 import {
   createUniqueEndpointRecord,
   listLiveEndpoints,
+  renameEndpoint,
   removeEndpointRecord,
 } from "../src/registry/endpoint-store.js";
 
@@ -33,6 +40,38 @@ test("parseEndpointRecord accepts valid records", () => {
 test("parseEndpointRecord rejects malformed records", () => {
   assert.throws(() => parseEndpointRecord("{}", "endpoint"), /schema_version must be 1/);
   assert.throws(() => parseEndpointRecord("{", "endpoint"), /expected JSON object/);
+});
+
+test("parseEndpointRecord falls back when stored display names are invalid", () => {
+  const record = {
+    ...createEndpointRecord({
+      endpointId: "ep_ABC234",
+      host: "127.0.0.1",
+      port: 49152,
+      pid: process.pid,
+      projectDir: "/repo/app",
+      now: new Date("2026-06-01T00:00:00.000Z"),
+    }),
+    display_name: "1",
+  };
+
+  assert.equal(parseEndpointRecord(JSON.stringify(record), "endpoint").display_name, "app");
+});
+
+test("renameEndpointRecord updates display name without changing endpoint identity", () => {
+  const record = createEndpointRecord({
+    endpointId: "ep_ABC234",
+    host: "127.0.0.1",
+    port: 49152,
+    pid: process.pid,
+    projectDir: "/repo/app",
+    now: new Date("2026-06-01T00:00:00.000Z"),
+  });
+
+  const renamed = renameEndpointRecord(record, " review-left ");
+
+  assert.equal(renamed.endpoint_id, record.endpoint_id);
+  assert.equal(renamed.display_name, "review-left");
 });
 
 test("endpoint store writes, lists, prunes invalid or stale records, and removes endpoints", async () => {
@@ -81,6 +120,26 @@ test("endpoint store allocates a unique live endpoint record", async () => {
 
     assert.equal(isEndpointId(record.endpoint_id), true);
     assert.deepEqual(await listLiveEndpoints({ dir, now: new Date("2026-06-01T00:00:05.000Z") }), [record]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("endpoint store renames and persists endpoint records", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "claude-channel-endpoints-"));
+  try {
+    const record = await createUniqueEndpointRecord({
+      host: "127.0.0.1",
+      port: 49152,
+      pid: process.pid,
+      projectDir: "/repo/app",
+      now: new Date("2026-06-01T00:00:00.000Z"),
+    }, { dir });
+
+    const renamed = await renameEndpoint(record, "review-left", { dir });
+
+    assert.equal(renamed.display_name, "review-left");
+    assert.deepEqual(await listLiveEndpoints({ dir, now: new Date("2026-06-01T00:00:05.000Z") }), [renamed]);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -6,18 +6,29 @@ import { readRecordObject } from "../validation.js";
 import { formatChannelUrl } from "../registry/endpoint-url.js";
 import { resolveClaudeTarget, type TargetResolutionOptions } from "./target-resolver.js";
 import { ASK_TRANSPORT_TIMEOUT_GRACE_MS } from "../config/defaults.js";
+import { normalizeEndpointDisplayName } from "../registry/display-name.js";
 
-type ChannelMessageOptions = TargetResolutionOptions & {
-  sender?: string;
-  searchParams?: URLSearchParams;
+const RENAME_TRANSPORT_TIMEOUT_MS = 60_000;
+
+type ChannelRequestOptions = TargetResolutionOptions & {
   transportTimeoutMs?: number;
   token?: string;
-  env?: NodeJS.ProcessEnv;
   fetchFn?: typeof fetch;
+};
+
+type ChannelMessageOptions = ChannelRequestOptions & {
+  sender?: string;
+  searchParams?: URLSearchParams;
 };
 
 export type TargetedAskResponse = AskResponse & {
   target: string;
+};
+
+export type RenameDisplayNameResponse = {
+  ok: true;
+  target: string;
+  display_name: string;
 };
 
 export async function askClaude(
@@ -35,6 +46,32 @@ export async function askClaude(
 
 export function askTransportTimeoutMs(timeoutMs: number): number {
   return timeoutMs + ASK_TRANSPORT_TIMEOUT_GRACE_MS;
+}
+
+export async function renameClaudeDisplayName(
+  displayName: string,
+  options: ChannelRequestOptions,
+): Promise<RenameDisplayNameResponse> {
+  const normalizedDisplayName = normalizeEndpointDisplayName(displayName);
+  const { endpoint } = await resolveClaudeTarget(options);
+  const token = options.token ?? await readToken();
+  const init: RequestInit = {
+    method: "PATCH",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json; charset=utf-8",
+    },
+    body: JSON.stringify({ display_name: normalizedDisplayName }),
+  };
+  const response = options.fetchFn
+    ? await options.fetchFn(formatChannelUrl(endpoint, "/display-name"), init)
+    : await fetch(
+      formatChannelUrl(endpoint, "/display-name"),
+      withTransportTimeout(init, options.transportTimeoutMs ?? RENAME_TRANSPORT_TIMEOUT_MS),
+    );
+
+  const body = validateRenameResponse(await readJsonResponse(response, "rename"), "rename");
+  return { ...body, target: endpoint.endpoint_id };
 }
 
 async function postAskMessage(
@@ -121,6 +158,20 @@ function validateAskResponse(value: unknown, action: string): AskResponse {
     request_id: requestId,
     status,
     answer,
+  };
+}
+
+function validateRenameResponse(value: unknown, action: string): Omit<RenameDisplayNameResponse, "target"> {
+  const record = readResponseRecord(value, action);
+  const displayName = record.display_name;
+
+  if (record.ok !== true || typeof displayName !== "string") {
+    throw new Error(`${action} failed: response JSON did not match expected shape`);
+  }
+
+  return {
+    ok: true,
+    display_name: displayName,
   };
 }
 

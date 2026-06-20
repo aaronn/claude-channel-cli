@@ -3,6 +3,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { CodexChannelToolDeps } from "../src/codex-mcp/server.js";
 import type { ChannelEmitter } from "../src/http/bridge-server.js";
 import type { PendingRequests } from "../src/pending-requests.js";
+import { normalizeEndpointDisplayName } from "../src/registry/display-name.js";
 import type { EndpointCandidate, EndpointRecord } from "../src/registry/endpoint-record.js";
 
 export const testEndpoint: EndpointRecord = {
@@ -12,7 +13,7 @@ export const testEndpoint: EndpointRecord = {
   port: 8788,
   pid: 123,
   project_dir: "/repo/app",
-  display_name: "app",
+  display_name: normalizeEndpointDisplayName("app"),
   started_at: "2026-06-01T00:00:00.000Z",
   last_seen_at: "2026-06-01T00:00:01.000Z",
 };

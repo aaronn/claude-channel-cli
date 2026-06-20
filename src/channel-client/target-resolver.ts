@@ -6,6 +6,7 @@ import {
   toEndpointCandidates,
 } from "../registry/endpoint-record.js";
 import { listLiveEndpoints } from "../registry/endpoint-store.js";
+import { parseListIndexTargetToken } from "../registry/target-token.js";
 
 export type TargetResolutionOptions = {
   target?: string;
@@ -83,11 +84,14 @@ function resolveNamedTarget(
   endpoints: EndpointRecord[],
   candidates: EndpointCandidate[],
 ): EndpointRecord {
-  const byIndex = /^\d+$/.test(target) ? endpoints[Number.parseInt(target, 10) - 1] : undefined;
+  const targetIndex = parseListIndexTargetToken(target);
+  const byIndex = targetIndex === undefined ? undefined : endpoints[targetIndex];
   if (byIndex) return byIndex;
 
+  const byEndpointId = endpoints.find((endpoint) => endpoint.endpoint_id === target);
+  if (byEndpointId) return byEndpointId;
+
   const matches = endpoints.filter((endpoint) =>
-    endpoint.endpoint_id === target ||
     endpoint.display_name === target ||
     endpoint.project_dir === target
   );

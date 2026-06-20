@@ -1,4 +1,8 @@
-import path from "node:path";
+import {
+  displayNameForProjectDir,
+  normalizeEndpointDisplayName,
+  type EndpointDisplayName,
+} from "./display-name.js";
 import { isEndpointId } from "./endpoint-id.js";
 
 export type EndpointRecord = {
@@ -8,7 +12,7 @@ export type EndpointRecord = {
   port: number;
   pid: number;
   project_dir: string;
-  display_name: string;
+  display_name: EndpointDisplayName;
   started_at: string;
   last_seen_at: string;
 };
@@ -33,6 +37,7 @@ export function createEndpointRecord(input: {
   port: number;
   pid: number;
   projectDir: string;
+  displayName?: EndpointDisplayName;
   now?: Date;
 }): EndpointRecord {
   const now = input.now ?? new Date();
@@ -43,7 +48,7 @@ export function createEndpointRecord(input: {
     port: input.port,
     pid: input.pid,
     project_dir: input.projectDir,
-    display_name: displayNameForProjectDir(input.projectDir),
+    display_name: input.displayName ?? displayNameForProjectDir(input.projectDir),
     started_at: now.toISOString(),
     last_seen_at: now.toISOString(),
   };
@@ -89,8 +94,8 @@ export function parseEndpointRecord(raw: string, source = "endpoint record"): En
   if (typeof record.project_dir !== "string" || record.project_dir.trim().length === 0) {
     throw new Error(`${source} is invalid: project_dir must be a non-empty string`);
   }
-  if (typeof record.display_name !== "string" || record.display_name.trim().length === 0) {
-    throw new Error(`${source} is invalid: display_name must be a non-empty string`);
+  if (record.display_name !== undefined && typeof record.display_name !== "string") {
+    throw new Error(`${source} is invalid: display_name must be a string when present`);
   }
   if (!isValidDate(record.started_at)) {
     throw new Error(`${source} is invalid: started_at must be a valid timestamp`);
@@ -106,15 +111,29 @@ export function parseEndpointRecord(raw: string, source = "endpoint record"): En
     port,
     pid,
     project_dir: record.project_dir,
-    display_name: record.display_name,
+    display_name: parseStoredDisplayName(record.display_name, record.project_dir),
     started_at: record.started_at,
     last_seen_at: record.last_seen_at,
   };
 }
 
-function displayNameForProjectDir(projectDir: string): string {
-  const base = path.basename(projectDir);
-  return base || projectDir;
+export function renameEndpointRecord(record: EndpointRecord, displayName: string): EndpointRecord {
+  return {
+    ...record,
+    display_name: normalizeEndpointDisplayName(displayName),
+  };
+}
+
+function parseStoredDisplayName(value: string | undefined, projectDir: string): EndpointDisplayName {
+  if (value !== undefined) {
+    try {
+      return normalizeEndpointDisplayName(value);
+    } catch {
+      return displayNameForProjectDir(projectDir);
+    }
+  }
+
+  return displayNameForProjectDir(projectDir);
 }
 
 export function toEndpointCandidates(records: EndpointRecord[], now = new Date()): EndpointCandidate[] {
