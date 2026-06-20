@@ -1,8 +1,8 @@
 # claude-channel-cli
 
-`claude-channel-cli` asks an already-running Claude Code session questions from Codex, Claude Code, or any local shell and returns Claude's response to the caller. Because it's built on the Channels feature, it recognizes it's a different agent and can respond to you both independently, almost like a group chat.
+`claude-channel-cli` asks a live Claude Code session questions from Codex, Claude Code, or any local shell and returns Claude's response to the caller. Because it's built on the Channels feature, Claude Code can tell the request came from another agent and can respond through the channel without mixing that response into your normal chat.
 
-Unlike using the API directly or a sub-agent, this gives you full auditability and steerability. For example, you might have Codex work on a plan and submit it to Claude for approval. You might notice something you don't like and discuss it with Claude – that same instance will remember that context based on your discussion and carry it forward through future decisions with Codex.
+Unlike using the API directly or a sub-agent, this gives you full auditability and steerability. For example, Codex can submit a plan to Claude for review while you keep watching and steering that same Claude Code session.
 
 
 ## Install the CLI
@@ -18,14 +18,14 @@ This makes the `claude-channel` command available on your `PATH`.
 
 ## Start Claude Code
 
-Claude Channel is not approved by Anthropic's marketplace yet. For now, register the receiver-side MCP server once from the directory or project you'd like to use. This is what allows `claude-channel-cli` to find the right instance if you have multiple sessions open:
+Claude Channel is not approved by Anthropic's marketplace yet. For now, register the receiver-side MCP server once from each project directory where you want Claude Code to receive channel requests:
 
 ```sh
 cd ~/github/my_project/
 claude-channel setup-mcp
 ```
 
-Then start Claude Code from the project, or resume a thread (the explicit flag is needed until we're approved by Anthropic):
+Then start Claude Code from that same project, or resume a thread there. The explicit channel flag is required until the plugin is available through Anthropic's marketplace:
 
 ```sh
 claude --dangerously-load-development-channels server:claude-channel-cli
@@ -34,18 +34,12 @@ claude --dangerously-load-development-channels server:claude-channel-cli
 
 ## Use the CLI
 
-In another shell, after starting Claude Code with the channel enabled:
+In another shell, ask the channel-enabled Claude Code session:
 
 ```sh
 claude-channel list
 claude-channel status
 claude-channel ask "From Codex: reply through complete_channel_request."
-```
-
-Ask for a response:
-
-```sh
-claude-channel ask "From Codex: review this and complete the request."
 ```
 
 `ask` defaults to a 30-minute timeout. Use `--output json` when a script needs the full response envelope:
@@ -101,7 +95,7 @@ Each channel-enabled Claude Code window registers a local endpoint under:
 ~/.claude-channel/endpoints/ep_<id>.json
 ```
 
-When exactly one endpoint is live, `--to` is optional. When more than one endpoint is live, commands fail closed and print candidates:
+When exactly one endpoint is live, `--to` is optional. When more than one endpoint is live, commands fail closed and print candidates instead of guessing:
 
 ```sh
 claude-channel list
@@ -109,9 +103,9 @@ claude-channel ask --to ep_ABC234 "From Codex: review this diff."
 CLAUDE_CHANNEL_TARGET=ep_ABC234 claude-channel status
 ```
 
-`--to` accepts an endpoint id, a unique display name, a project path, or a numeric index from `claude-channel list`.
+`--to` accepts an endpoint id, a unique display name, a project path, or a numeric index from the current `claude-channel list` output.
 
-Use `rename` to make same-project sessions easy to target:
+Use `rename` to make same-project sessions predictable:
 
 ```sh
 claude-channel rename --to ep_ABC234 review-left
