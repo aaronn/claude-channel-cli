@@ -28,12 +28,12 @@ claude-channel setup-mcp
 Then start the Claude Code session in that same project:
 
 ```sh
-claude --dangerously-load-development-channels server:claude-channel-cli
+claude
 ```
 
-`setup-mcp` is per project directory. Run it from the project you want Codex or another caller to reach; do not register one project and then expect a different Claude Code project to receive those channel messages. The `--dangerously-load-development-channels` command is the per-launch channel enablement step. For one-off scripted launches, you can combine it with `CLAUDE_CHANNEL_DISPLAY_NAME` to set the initial target label.
+`setup-mcp` is per project directory. Run it from the project you want Codex or another caller to reach; do not register one project and then expect a different Claude Code project to receive those channel messages. For scripted launches, combine `claude` with `CLAUDE_CHANNEL_DISPLAY_NAME` to set the initial target label.
 
-After `setup-mcp`, plain `claude` may still start the MCP subprocess, but it will not register a usable channel target unless the session was started with the channel flag. If `claude-channel list` shows more than one target, close the extra Claude Code session or choose the intended target with `--to`.
+If more than one Claude Code session starts this MCP server, each session appears as a separate target. Use `CLAUDE_CHANNEL_DISPLAY_NAME` when launching, `claude-channel rename`, or `--to` when asking to keep targeting explicit.
 
 To remove the saved project registration:
 
@@ -44,7 +44,7 @@ claude mcp remove "claude-channel-cli" -s local
 
 ## Use the CLI
 
-In another shell, after starting Claude Code with the channel enabled:
+In another shell, after starting the Claude Code session:
 
 ```sh
 claude-channel list
@@ -114,7 +114,7 @@ Codex can also alternatively use the CLI directly.
 
 ## Multiple Sessions & Targeting
 
-Each channel-enabled Claude Code window registers a local endpoint under:
+Each Claude Code window that starts this MCP server registers a local endpoint under:
 
 ```text
 ~/.claude-channel/endpoints/ep_<id>.json
@@ -143,7 +143,7 @@ Display names cannot be only digits, look like endpoint ids, or contain control/
 For scripted launches, set the startup display name before starting Claude Code:
 
 ```sh
-CLAUDE_CHANNEL_DISPLAY_NAME=review-left claude --dangerously-load-development-channels server:claude-channel-cli
+CLAUDE_CHANNEL_DISPLAY_NAME=review-left claude
 ```
 
 
@@ -179,7 +179,7 @@ npm link
 ```sh
 cd /path/to/receiver-project
 claude-channel setup-mcp --force
-claude --dangerously-load-development-channels server:claude-channel-cli
+claude
 ```
 
 The Claude plugin manifest lives at `.claude-plugin/plugin.json`. For local development, first validate that packaging:

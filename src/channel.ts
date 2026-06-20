@@ -4,7 +4,6 @@ import path from "node:path";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createEndpointLifecycle, type ChannelEndpointLifecycle } from "./channel-lifecycle.js";
-import { isChannelReady } from "./channel-readiness.js";
 import { DEFAULT_CHANNEL_INITIALIZE_TIMEOUT_MS } from "./config/defaults.js";
 import { readChannelRuntimeConfig } from "./config/env.js";
 import { readOrCreateToken } from "./config/paths.js";
@@ -49,19 +48,10 @@ async function main(): Promise<void> {
   wireShutdownHandlers(channel.server, lifecycle);
 
   try {
+    // Do not advertise an endpoint until Claude Code finishes MCP initialization.
     const initialized = waitForInitialized(channel.server, DEFAULT_CHANNEL_INITIALIZE_TIMEOUT_MS);
     await channel.server.connect(new StdioServerTransport());
     await initialized;
-
-    if (!isChannelReady(channel.server.getClientCapabilities())) {
-      console.error(
-        "claude-channel-cli did not register an endpoint because Claude Code did not enable channel delivery.",
-      );
-      console.error("Start Claude Code with: claude --dangerously-load-development-channels server:claude-channel-cli");
-      await channel.server.close();
-      await lifecycle.shutdown();
-      return;
-    }
 
     const port = await listen(httpServer, config.port, config.host);
     const endpointRecord = await lifecycle.register(port);

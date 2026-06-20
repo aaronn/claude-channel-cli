@@ -65,7 +65,10 @@ test("setupMcp dry run reports the commands without running them", async () => {
     "claude-dev mcp remove --scope local claude-channel-cli",
     "claude-dev mcp add --scope local claude-channel-cli -- /usr/local/bin/claude-channel-server",
   ]);
-  assert.match(formatSetupMcpResult(result), /Would run:/);
+  const output = formatSetupMcpResult(result);
+  assert.match(output, /Would run:/);
+  assert.match(output, /Then start Claude Code from this project with:\nclaude/);
+  assert.doesNotMatch(output, /dangerously-load-development-channels/);
 });
 
 test("setupMcp runs remove before add when force is set", async () => {

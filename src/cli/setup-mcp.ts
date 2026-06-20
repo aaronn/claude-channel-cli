@@ -5,8 +5,7 @@ import { fileURLToPath } from "node:url";
 
 export const CLAUDE_MCP_SERVER_NAME = "claude-channel-cli";
 export const CLAUDE_CHANNEL_SERVER_BIN = "claude-channel-server";
-export const CLAUDE_CHANNEL_LAUNCH_COMMAND =
-  `claude --dangerously-load-development-channels server:${CLAUDE_MCP_SERVER_NAME}`;
+export const CLAUDE_CHANNEL_LAUNCH_COMMAND = "claude";
 
 export type SetupMcpScope = "local" | "user";
 

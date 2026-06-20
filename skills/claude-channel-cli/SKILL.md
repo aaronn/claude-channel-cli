@@ -30,7 +30,7 @@ Use the bundled Claude Channel CLI MCP tools to communicate with the user's live
 - For very large CLI fallback reviews, redirect answer text to a visible file instead of relying on terminal output capture.
 - When a tool cannot resolve a single target and returns `candidates`, ask the user to choose from the candidates; never guess from branch names, task names, terminal titles, or transcript names.
 - Prefer endpoint ids for retries and scripts. Numeric list indexes are acceptable only for immediate human CLI fallback.
-- If `status_claude_channel` reports the channel is not reachable, tell the user the channel is not running and ask them to start Claude Code with the `claude-channel-cli` channel enabled.
+- If `status_claude_channel` reports the channel is not reachable, tell the user the target is not reachable and ask them to start or restart the intended Claude Code session with `claude-channel-cli`.
 
 ## CLI Fallback
 
