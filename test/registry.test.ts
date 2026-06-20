@@ -42,7 +42,7 @@ test("parseEndpointRecord rejects malformed records", () => {
   assert.throws(() => parseEndpointRecord("{", "endpoint"), /expected JSON object/);
 });
 
-test("parseEndpointRecord coerces legacy display names in memory", () => {
+test("parseEndpointRecord falls back when stored display names are invalid", () => {
   const record = {
     ...createEndpointRecord({
       endpointId: "ep_ABC234",
@@ -55,7 +55,7 @@ test("parseEndpointRecord coerces legacy display names in memory", () => {
     display_name: "1",
   };
 
-  assert.equal(parseEndpointRecord(JSON.stringify(record), "endpoint").display_name, "1-project");
+  assert.equal(parseEndpointRecord(JSON.stringify(record), "endpoint").display_name, "app");
 });
 
 test("renameEndpointRecord updates display name without changing endpoint identity", () => {

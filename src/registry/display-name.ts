@@ -32,32 +32,22 @@ export function normalizeEndpointDisplayName(value: string, label = "display_nam
 
 export function displayNameForProjectDir(projectDir: string): EndpointDisplayName {
   const projectName = path.basename(projectDir) || projectDir || DEFAULT_DISPLAY_NAME;
-  return toSafeDefaultDisplayName(projectName);
+  return toDefaultDisplayName(projectName);
 }
 
-export function coerceStoredEndpointDisplayName(value: string | undefined, projectDir: string): EndpointDisplayName {
-  return toSafeDefaultDisplayName(value?.trim() || path.basename(projectDir) || projectDir || DEFAULT_DISPLAY_NAME);
-}
-
-function toSafeDefaultDisplayName(value: string): EndpointDisplayName {
+function toDefaultDisplayName(value: string): EndpointDisplayName {
   const safe = replaceUnsafeDisplayCharacters(value).trim() || DEFAULT_DISPLAY_NAME;
-  const truncated = truncateDisplayName(safe);
-  const defaultName = isReservedTargetToken(truncated)
-    ? appendReservedDisplayNameSuffix(truncated)
-    : truncated;
+  const candidate = truncateDisplayName(safe, MAX_ENDPOINT_DISPLAY_NAME_LENGTH) || DEFAULT_DISPLAY_NAME;
+  if (!isReservedTargetToken(candidate)) return candidate as EndpointDisplayName;
 
-  return defaultName as EndpointDisplayName;
-}
-
-function truncateDisplayName(value: string): string {
-  if (displayNameLength(value) <= MAX_ENDPOINT_DISPLAY_NAME_LENGTH) return value;
-  return [...value].slice(0, MAX_ENDPOINT_DISPLAY_NAME_LENGTH).join("").trim() || DEFAULT_DISPLAY_NAME;
-}
-
-function appendReservedDisplayNameSuffix(value: string): string {
   const prefixLength = MAX_ENDPOINT_DISPLAY_NAME_LENGTH - RESERVED_DISPLAY_NAME_SUFFIX.length;
-  const prefix = [...value].slice(0, prefixLength).join("").trim() || DEFAULT_DISPLAY_NAME;
-  return `${prefix}${RESERVED_DISPLAY_NAME_SUFFIX}`;
+  const prefix = truncateDisplayName(candidate, prefixLength) || DEFAULT_DISPLAY_NAME;
+  return `${prefix}${RESERVED_DISPLAY_NAME_SUFFIX}` as EndpointDisplayName;
+}
+
+function truncateDisplayName(value: string, maxLength: number): string {
+  if (displayNameLength(value) <= maxLength) return value;
+  return [...value].slice(0, maxLength).join("").trim();
 }
 
 function replaceUnsafeDisplayCharacters(value: string): string {

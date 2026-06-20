@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  coerceStoredEndpointDisplayName,
   displayNameForProjectDir,
   MAX_ENDPOINT_DISPLAY_NAME_LENGTH,
   normalizeEndpointDisplayName,
@@ -30,9 +29,6 @@ test("displayNameForProjectDir creates safe default labels", () => {
   assert.equal(displayNameForProjectDir("/repo/app"), "app");
   assert.equal(displayNameForProjectDir("/repo/2"), "2-project");
   assert.equal(displayNameForProjectDir("/repo/ep_ABC234"), "ep_ABC234-project");
-});
-
-test("coerceStoredEndpointDisplayName tolerates legacy record names", () => {
-  assert.equal(coerceStoredEndpointDisplayName("bad\u202Ename", "/repo/app"), "bad name");
-  assert.equal(coerceStoredEndpointDisplayName("", "/repo/app"), "app");
+  assert.equal(displayNameForProjectDir(`/repo/${"x".repeat(MAX_ENDPOINT_DISPLAY_NAME_LENGTH + 1)}`).length, 64);
+  assert.match(displayNameForProjectDir(`/repo/${"1".repeat(MAX_ENDPOINT_DISPLAY_NAME_LENGTH + 1)}`), /-project$/);
 });

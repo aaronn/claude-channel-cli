@@ -1,5 +1,4 @@
 import {
-  coerceStoredEndpointDisplayName,
   displayNameForProjectDir,
   normalizeEndpointDisplayName,
   type EndpointDisplayName,
@@ -112,7 +111,7 @@ export function parseEndpointRecord(raw: string, source = "endpoint record"): En
     port,
     pid,
     project_dir: record.project_dir,
-    display_name: coerceStoredEndpointDisplayName(record.display_name, record.project_dir),
+    display_name: parseStoredDisplayName(record.display_name, record.project_dir),
     started_at: record.started_at,
     last_seen_at: record.last_seen_at,
   };
@@ -123,6 +122,18 @@ export function renameEndpointRecord(record: EndpointRecord, displayName: string
     ...record,
     display_name: normalizeEndpointDisplayName(displayName),
   };
+}
+
+function parseStoredDisplayName(value: string | undefined, projectDir: string): EndpointDisplayName {
+  if (value !== undefined) {
+    try {
+      return normalizeEndpointDisplayName(value);
+    } catch {
+      return displayNameForProjectDir(projectDir);
+    }
+  }
+
+  return displayNameForProjectDir(projectDir);
 }
 
 export function toEndpointCandidates(records: EndpointRecord[], now = new Date()): EndpointCandidate[] {
