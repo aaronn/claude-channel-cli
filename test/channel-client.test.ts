@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { askClaude, askTransportTimeoutMs } from "../src/channel-client/client.js";
+import { askClaude, askTransportTimeoutMs, renameClaudeDisplayName } from "../src/channel-client/client.js";
 import { ASK_TRANSPORT_TIMEOUT_GRACE_MS } from "../src/config/defaults.js";
+import { normalizeEndpointDisplayName } from "../src/registry/display-name.js";
 import type { EndpointRecord } from "../src/registry/endpoint-record.js";
 
 const endpoint: EndpointRecord = {
@@ -11,7 +12,7 @@ const endpoint: EndpointRecord = {
   port: 8788,
   pid: 123,
   project_dir: "/repo/app",
-  display_name: "app",
+  display_name: normalizeEndpointDisplayName("app"),
   started_at: "2026-06-01T00:00:00.000Z",
   last_seen_at: "2026-06-01T00:00:01.000Z",
 };
@@ -33,6 +34,15 @@ function requestUrl(input: Parameters<typeof fetch>[0]): string {
   if (typeof input === "string") return input;
   if (input instanceof URL) return input.toString();
   return input.url;
+}
+
+function requestStringBody(init: RequestInit | undefined): string {
+  assert.ok(init);
+  const body = init.body;
+  if (typeof body !== "string") {
+    assert.fail("request body must be a string");
+  }
+  return body;
 }
 
 test("askClaude sends a plain-text request with auth, sender metadata, and timeout_ms", async () => {
@@ -103,6 +113,37 @@ test("askClaude resolves sender metadata from environment or default", async () 
 
 test("askTransportTimeoutMs adds transport margin outside the app timeout", () => {
   assert.equal(askTransportTimeoutMs(1_800_000), 1_800_000 + ASK_TRANSPORT_TIMEOUT_GRACE_MS);
+});
+
+test("renameClaudeDisplayName sends an authenticated JSON PATCH", async () => {
+  let request: { url: string; init?: RequestInit } | undefined;
+
+  const result = await renameClaudeDisplayName("  review-left  ", {
+    endpoints: [endpoint],
+    token: "secret",
+    fetchFn: async (url, init) => {
+      request = { url: requestUrl(url), init };
+      return jsonResponse({
+        ok: true,
+        display_name: "review-left",
+      });
+    },
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    target: endpoint.endpoint_id,
+    display_name: "review-left",
+  });
+  assert.equal(request?.url, "http://[::1]:8788/display-name");
+  assert.equal(request?.init?.method, "PATCH");
+  assert.deepEqual(JSON.parse(requestStringBody(request?.init)) as unknown, {
+    display_name: "review-left",
+  });
+  assert.deepEqual(requestHeaders(request?.init), {
+    authorization: "Bearer secret",
+    "content-type": "application/json; charset=utf-8",
+  });
 });
 
 test("client response validation rejects malformed envelopes", async () => {
