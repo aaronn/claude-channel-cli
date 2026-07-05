@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcessByStdio } from "node:child_process";
+import type { Readable } from "node:stream";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -69,6 +70,54 @@ test("start command forwards args after separator through commander", async () =
   ]);
 });
 
+test("start command forwards parent-only SIGTERM to Claude and exits", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "claude-channel-start-signal-"));
+  const homeDir = await mkdtemp(path.join(tmpdir(), "claude-channel-home-"));
+  const signalPath = path.join(dir, "signal.txt");
+  const childPidPath = path.join(dir, "child-pid.txt");
+  const fakeClaude = path.join(dir, "claude");
+  await writeFile(
+    fakeClaude,
+    [
+      "#!/usr/bin/env node",
+      "const { writeFileSync } = require('node:fs');",
+      "writeFileSync(process.env.CLAUDE_CHANNEL_TEST_CHILD_PID, String(process.pid));",
+      "process.on('SIGTERM', () => {",
+      "  writeFileSync(process.env.CLAUDE_CHANNEL_TEST_SIGNAL, 'SIGTERM');",
+      "  process.exit(0);",
+      "});",
+      "setInterval(() => {}, 1000);",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  await chmod(fakeClaude, 0o755);
+
+  try {
+    const child = spawn(process.execPath, ["--import", "tsx", "src/cli.ts", "start"], {
+      cwd: path.resolve(import.meta.dirname, ".."),
+      env: {
+        ...process.env,
+        PATH: `${dir}${path.delimiter}${process.env.PATH ?? ""}`,
+        HOME: homeDir,
+        CLAUDE_CHANNEL_TEST_CHILD_PID: childPidPath,
+        CLAUDE_CHANNEL_TEST_SIGNAL: signalPath,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    await readFileEventually(childPidPath);
+    child.kill("SIGTERM");
+
+    const result = await waitForProcess(child, 5_000);
+    assert.equal(result.timedOut, false, `stdout: ${result.stdout}\nstderr: ${result.stderr}`);
+    assert.equal(await readFile(signalPath, "utf8"), "SIGTERM");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+    await rm(homeDir, { recursive: true, force: true });
+  }
+});
+
 test("setup-mcp prints the migration error with legacy flags", async () => {
   for (const args of [
     ["setup-mcp"],
@@ -125,6 +174,14 @@ async function runCli(args: string[], env: NodeJS.ProcessEnv): Promise<{ code: n
     stdio: ["ignore", "pipe", "pipe"],
   });
 
+  return waitForProcess(child);
+}
+
+async function waitForProcess(
+  child: ChildProcessByStdio<null, Readable, Readable>,
+  timeoutMs?: number,
+): Promise<{ code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string; timedOut: boolean }> {
+
   let stdout = "";
   let stderr = "";
   child.stdout.setEncoding("utf8");
@@ -136,9 +193,31 @@ async function runCli(args: string[], env: NodeJS.ProcessEnv): Promise<{ code: n
     stderr += chunk;
   });
 
-  const code = await new Promise<number | null>((resolve, reject) => {
+  let timedOut = false;
+  const timeout = timeoutMs
+    ? setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGKILL");
+    }, timeoutMs)
+    : undefined;
+
+  const { code, signal } = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve, reject) => {
     child.once("error", reject);
-    child.once("close", resolve);
+    child.once("close", (code, signal) => resolve({ code, signal }));
   });
-  return { code, stdout, stderr };
+  if (timeout) clearTimeout(timeout);
+  return { code, signal, stdout, stderr, timedOut };
+}
+
+async function readFileEventually(file: string, timeoutMs = 5_000): Promise<string> {
+  const startedAt = Date.now();
+  while (true) {
+    try {
+      return await readFile(file, "utf8");
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+      if (Date.now() - startedAt > timeoutMs) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  }
 }

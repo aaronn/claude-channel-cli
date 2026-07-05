@@ -1,14 +1,17 @@
-import { spawn } from "node:child_process";
+import { foregroundChild } from "foreground-child";
 import {
   buildSessionMcpConfig,
   CLAUDE_CHANNEL_DEVELOPMENT_CHANNEL,
   findPersistentClaudeMcpEntries,
+  findExecutableOnPath,
   formatPersistentClaudeMcpError,
   formatShellCommand,
   resolveServerCommand,
   type PersistentClaudeMcpEntry,
   type ServerCommand,
 } from "./claude-mcp.js";
+
+const CLAUDE_COMMAND = "claude";
 
 export type StartClaudeOptions = {
   resolveServerCommand?: () => Promise<ServerCommand>;
@@ -25,7 +28,7 @@ export function buildClaudeStartArgs(serverCommand: ServerCommand, args: string[
 }
 
 export function formatNativeStartCommand(serverCommand: ServerCommand, args: string[] = []): string {
-  return formatShellCommand("claude", buildClaudeStartArgs(serverCommand, args));
+  return formatShellCommand(CLAUDE_COMMAND, buildClaudeStartArgs(serverCommand, args));
 }
 
 export async function startClaude(args: string[] = [], options: StartClaudeOptions = {}): Promise<never> {
@@ -35,29 +38,12 @@ export async function startClaude(args: string[] = [], options: StartClaudeOptio
   }
 
   const serverCommand = await (options.resolveServerCommand ?? resolveServerCommand)();
-  const child = spawn("claude", buildClaudeStartArgs(serverCommand, args), {
+  if (!await findExecutableOnPath(CLAUDE_COMMAND)) {
+    throw new Error("Claude Code CLI (`claude`) not found on PATH.");
+  }
+
+  foregroundChild(CLAUDE_COMMAND, buildClaudeStartArgs(serverCommand, args), {
     stdio: "inherit",
   });
-
-  const ignoreSignal = (): void => undefined;
-  process.on("SIGINT", ignoreSignal);
-  process.on("SIGTERM", ignoreSignal);
-
-  try {
-    const code = await new Promise<number | null>((resolve, reject) => {
-      child.once("error", (error: NodeJS.ErrnoException) => {
-        if (error.code === "ENOENT") {
-          reject(new Error("Claude Code CLI (`claude`) not found on PATH."));
-        } else {
-          reject(error);
-        }
-      });
-      child.once("close", resolve);
-    });
-
-    process.exit(code ?? 1);
-  } finally {
-    process.off("SIGINT", ignoreSignal);
-    process.off("SIGTERM", ignoreSignal);
-  }
+  return new Promise<never>(() => undefined);
 }
