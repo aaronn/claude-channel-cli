@@ -1,39 +1,35 @@
 import {
+  assertNoPersistentClaudeMcpProblems,
   CLAUDE_CHANNEL_LAUNCH_COMMAND,
-  findPersistentClaudeMcpEntries,
-  formatPersistentClaudeMcpError,
+  inspectPersistentClaudeMcp,
   formatShellCommand,
   resolveServerCommand,
-  type PersistentClaudeMcpEntry,
+  type PersistentClaudeMcpInspection,
   type ServerCommand,
 } from "./claude-mcp.js";
 
 export type SetupOptions = {
-  dryRun?: boolean;
   resolveServerCommand?: () => Promise<ServerCommand>;
-  findPersistentEntries?: () => Promise<PersistentClaudeMcpEntry[]>;
+  inspectPersistentEntries?: () => Promise<PersistentClaudeMcpInspection>;
 };
 
 export type SetupResult = {
-  dryRun: boolean;
   serverCommand: ServerCommand;
 };
 
 export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
-  const entries = await (options.findPersistentEntries ?? findPersistentClaudeMcpEntries)();
-  if (entries.length > 0) {
-    throw new Error(formatPersistentClaudeMcpError(entries));
-  }
+  assertNoPersistentClaudeMcpProblems(
+    await (options.inspectPersistentEntries ?? inspectPersistentClaudeMcp)(),
+  );
 
   return {
-    dryRun: options.dryRun === true,
     serverCommand: await (options.resolveServerCommand ?? resolveServerCommand)(),
   };
 }
 
 export function formatSetupResult(result: SetupResult): string {
   return [
-    result.dryRun ? "Claude Channel setup check passed." : "Claude Channel is ready.",
+    "Claude Channel setup check passed.",
     "",
     "Start Claude Code with:",
     CLAUDE_CHANNEL_LAUNCH_COMMAND,

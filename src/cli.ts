@@ -40,10 +40,6 @@ type RenameOptions = {
   to: string;
 };
 
-type SetupCommandOptions = {
-  dryRun?: boolean;
-};
-
 type SetupCodexPluginCommandOptions = {
   dryRun?: boolean;
   force?: boolean;
@@ -90,8 +86,8 @@ async function rename(displayName: string, options: RenameOptions): Promise<void
   process.stdout.write(`Renamed ${result.target} to ${result.display_name}\n`);
 }
 
-async function setupCommand(options: SetupCommandOptions): Promise<void> {
-  process.stdout.write(formatSetupResult(await setup(options)));
+async function setupCommand(): Promise<void> {
+  process.stdout.write(formatSetupResult(await setup()));
 }
 
 function legacySetupMcpCommand(): never {
@@ -107,8 +103,7 @@ const program = new Command();
 program
   .name("claude-channel")
   .description("Ask a live Claude Code session through a local CLI channel.")
-  .version(VERSION)
-  .enablePositionalOptions();
+  .version(VERSION);
 
 program
   .command("status")
@@ -137,10 +132,9 @@ program
 program
   .command("setup")
   .description("Check this project for Claude Channel receiver readiness.")
-  .option("--dry-run", "Run the setup check without changing config.")
-  .action(async (options: SetupCommandOptions) => {
+  .action(async () => {
     try {
-      await setupCommand(options);
+      await setupCommand();
     } catch (error) {
       fail(error);
     }
@@ -162,13 +156,14 @@ program
 program
   .command("start")
   .description("Start Claude Code with the Claude Channel receiver enabled.")
+  .helpOption(false)
+  .helpCommand(false)
   .allowUnknownOption(true)
   .allowExcessArguments(true)
-  .passThroughOptions()
   .argument("[claudeArgs...]", "Arguments to forward to Claude Code.")
   .action(async (claudeArgs: string[]) => {
     try {
-      await startClaude(claudeArgs);
+      await startClaude(stripArgumentSeparator(claudeArgs));
     } catch (error) {
       fail(error);
     }
@@ -242,6 +237,11 @@ function fail(error: unknown): never {
     : error instanceof Error ? error.message : String(error);
   process.stderr.write(`${message}\n`);
   process.exit(1);
+}
+
+function stripArgumentSeparator(args: string[]): string[] {
+  const separator = args.indexOf("--");
+  return separator === -1 ? args : [...args.slice(0, separator), ...args.slice(separator + 1)];
 }
 
 function formatTargetResolutionError(error: TargetResolutionError): string {

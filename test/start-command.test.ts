@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
-import { spawn, type ChildProcessByStdio } from "node:child_process";
+import { spawn, type ChildProcess, type ChildProcessByStdio } from "node:child_process";
+import { EventEmitter } from "node:events";
 import type { Readable } from "node:stream";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
-  CLAUDE_CHANNEL_LAUNCH_MODE_ENV,
-  CLAUDE_CHANNEL_START_LAUNCH_MODE,
+  CLAUDE_CHANNEL_RECEIVER_LAUNCH_ARG,
   type ServerCommand,
 } from "../src/cli/claude-mcp.js";
-import { buildClaudeStartArgs, formatNativeStartCommand } from "../src/cli/start.js";
+import { buildClaudeStartArgs, launchClaudeForeground } from "../src/cli/start.js";
 
 const serverCommand: ServerCommand = {
   command: "claude-channel-server",
@@ -20,16 +20,14 @@ const sessionMcpArg = `--mcp-config=${JSON.stringify({
   mcpServers: {
     "claude-channel-cli": {
       command: "claude-channel-server",
-      args: [],
-      env: {
-        [CLAUDE_CHANNEL_LAUNCH_MODE_ENV]: CLAUDE_CHANNEL_START_LAUNCH_MODE,
-      },
+      args: [CLAUDE_CHANNEL_RECEIVER_LAUNCH_ARG],
+      env: {},
     },
   },
 })}`;
 
 test("buildClaudeStartArgs enables the claude-channel server and forwards args", () => {
-  assert.deepEqual(buildClaudeStartArgs(serverCommand, ["--model", "opus", "--continue"]), [
+  assert.deepEqual(buildClaudeStartArgs(serverCommand, ["--model", "opus", "--continue"], {}), [
     sessionMcpArg,
     "--dangerously-load-development-channels",
     "server:claude-channel-cli",
@@ -39,11 +37,25 @@ test("buildClaudeStartArgs enables the claude-channel server and forwards args",
   ]);
 });
 
-test("formatNativeStartCommand shell-quotes forwarded args", () => {
-  assert.equal(
-    formatNativeStartCommand(serverCommand, ["--name", "review left"]),
-    `claude '${sessionMcpArg}' --dangerously-load-development-channels server:claude-channel-cli --name 'review left'`,
-  );
+test("buildClaudeStartArgs snapshots receiver runtime env into the session MCP config", () => {
+  const [mcpConfigArg] = buildClaudeStartArgs(serverCommand, [], {
+    CLAUDE_CHANNEL_DISPLAY_NAME: "review-left",
+    CLAUDE_CHANNEL_PORT: "8790",
+    CLAUDE_CHANNEL_TARGET: "ignored-client-env",
+  });
+
+  assert.deepEqual(JSON.parse(mcpConfigArg.replace(/^--mcp-config=/, "")), {
+    mcpServers: {
+      "claude-channel-cli": {
+        command: "claude-channel-server",
+        args: [CLAUDE_CHANNEL_RECEIVER_LAUNCH_ARG],
+        env: {
+          CLAUDE_CHANNEL_DISPLAY_NAME: "review-left",
+          CLAUDE_CHANNEL_PORT: "8790",
+        },
+      },
+    },
+  });
 });
 
 test("start command forwards option-first Claude args through commander", async () => {
@@ -67,6 +79,30 @@ test("start command forwards args after separator through commander", async () =
     "--dangerously-load-development-channels",
     "server:claude-channel-cli",
     "--help",
+  ]);
+});
+
+test("start command forwards help flags to Claude after other Claude options", async () => {
+  const captured = await runStartWithFakeClaude(["--model", "opus", "--", "--help"]);
+
+  assert.deepEqual(captured, [
+    sessionMcpArg,
+    "--dangerously-load-development-channels",
+    "server:claude-channel-cli",
+    "--model",
+    "opus",
+    "--help",
+  ]);
+});
+
+test("start command forwards short help flags to Claude", async () => {
+  const captured = await runStartWithFakeClaude(["--", "-h"]);
+
+  assert.deepEqual(captured, [
+    sessionMcpArg,
+    "--dangerously-load-development-channels",
+    "server:claude-channel-cli",
+    "-h",
   ]);
 });
 
@@ -118,6 +154,46 @@ test("start command forwards parent-only SIGTERM to Claude and exits", async () 
   }
 });
 
+test("start command reports a friendly error when Claude is not on PATH", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "claude-channel-start-missing-"));
+  const homeDir = await mkdtemp(path.join(tmpdir(), "claude-channel-home-"));
+  const fakeServer = path.join(dir, "claude-channel-server");
+  await writeFile(fakeServer, "#!/bin/sh\nexit 0\n", "utf8");
+  await chmod(fakeServer, 0o755);
+
+  try {
+    const result = await runCli(["start"], {
+      ...receiverTestEnv(process.env),
+      PATH: dir,
+      HOME: homeDir,
+    });
+
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /Claude Code CLI \(`claude`\) not found on PATH/);
+    assert.doesNotMatch(result.stderr, /uncaughtException|Error:/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+    await rm(homeDir, { recursive: true, force: true });
+  }
+});
+
+test("launcher reports foreground-child spawn errors without uncaught exceptions", async () => {
+  await assert.rejects(
+    launchClaudeForeground([], {
+      env: { PATH: "/fake" },
+      findExecutable: async () => "/fake/claude",
+      foregroundChild: () => {
+        const child = new EventEmitter() as ChildProcess;
+        setImmediate(() => {
+          child.emit("error", Object.assign(new Error("permission denied"), { code: "EACCES" }));
+        });
+        return child;
+      },
+    }),
+    /Failed to start Claude Code CLI \(`claude`\): permission denied/,
+  );
+});
+
 test("setup-mcp prints the migration error with legacy flags", async () => {
   for (const args of [
     ["setup-mcp"],
@@ -154,7 +230,7 @@ async function runStartWithFakeClaude(args: string[]): Promise<string[]> {
 
   try {
     const result = await runCli(["start", ...args], {
-      ...process.env,
+      ...receiverTestEnv(process.env),
       PATH: `${dir}${path.delimiter}${process.env.PATH ?? ""}`,
       HOME: homeDir,
       CLAUDE_CHANNEL_TEST_CAPTURE: capturePath,
@@ -165,6 +241,21 @@ async function runStartWithFakeClaude(args: string[]): Promise<string[]> {
     await rm(dir, { recursive: true, force: true });
     await rm(homeDir, { recursive: true, force: true });
   }
+}
+
+function receiverTestEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const clean = { ...env };
+  for (const key of [
+    "CLAUDE_CHANNEL_HOST",
+    "CLAUDE_CHANNEL_PORT",
+    "CLAUDE_CHANNEL_MAX_BODY_BYTES",
+    "CLAUDE_CHANNEL_ASK_TIMEOUT_MS",
+    "CLAUDE_CHANNEL_DISPLAY_NAME",
+    "CLAUDE_CHANNEL_PROJECT_DIR",
+  ]) {
+    delete clean[key];
+  }
+  return clean;
 }
 
 async function runCli(args: string[], env: NodeJS.ProcessEnv): Promise<{ code: number | null; stdout: string; stderr: string }> {

@@ -26,7 +26,7 @@ This makes the `claude-channel` command available on your `PATH`.
 
 ## Start Claude Code
 
-Optionally check each project directory where you want Claude Code to receive channel requests:
+Optionally check each project directory where you want Claude Code to receive channel requests. This is a read-only readiness and stale-registration check:
 
 ```sh
 cd ~/github/my_project/
@@ -52,6 +52,8 @@ claude-channel start -- --help
 ```
 
 `claude-channel start` passes a session-scoped MCP config to Claude Code, so ordinary `claude` launches are not changed and do not start the channel receiver.
+
+The receiver is intentionally not a standalone command. Start it through `claude-channel start` so the session-scoped MCP config and launch marker are generated together.
 
 ### Upgrading from 0.3.x
 
@@ -179,7 +181,7 @@ npm run build
 npm link
 ```
 
-`npm link` makes the checkout's `claude-channel` and `claude-channel-server` binaries available on your `PATH`. Then check and start the receiver project:
+`npm link` makes the checkout's `claude-channel` and `claude-channel-server` binaries available on your `PATH`. Then check and start the receiver project through the wrapper:
 
 ```sh
 cd /path/to/receiver-project

@@ -28,8 +28,6 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc && node ./scripts/make-cli-executable.mjs",
-    "dev:channel": "tsx ./src/channel.ts",
-    "channel": "node ./dist/channel.js",
     "codex-mcp": "node ./dist/codex-mcp.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

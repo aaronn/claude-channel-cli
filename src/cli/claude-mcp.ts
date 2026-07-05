@@ -1,4 +1,4 @@
-import { access, constants, readFile } from "node:fs/promises";
+import { access, constants, readFile, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,8 +7,16 @@ export const CLAUDE_MCP_SERVER_NAME = "claude-channel-cli";
 export const CLAUDE_CHANNEL_SERVER_BIN = "claude-channel-server";
 export const CLAUDE_CHANNEL_LAUNCH_COMMAND = "claude-channel start";
 export const CLAUDE_CHANNEL_DEVELOPMENT_CHANNEL = `server:${CLAUDE_MCP_SERVER_NAME}`;
-export const CLAUDE_CHANNEL_LAUNCH_MODE_ENV = "CLAUDE_CHANNEL_LAUNCH_MODE";
-export const CLAUDE_CHANNEL_START_LAUNCH_MODE = "start";
+export const CLAUDE_CHANNEL_RECEIVER_LAUNCH_ARG = "--claude-channel-receiver-launch=start";
+
+const RECEIVER_RUNTIME_ENV_KEYS = [
+  "CLAUDE_CHANNEL_HOST",
+  "CLAUDE_CHANNEL_PORT",
+  "CLAUDE_CHANNEL_MAX_BODY_BYTES",
+  "CLAUDE_CHANNEL_ASK_TIMEOUT_MS",
+  "CLAUDE_CHANNEL_DISPLAY_NAME",
+  "CLAUDE_CHANNEL_PROJECT_DIR",
+] as const;
 
 export type ServerCommand = {
   command: string;
@@ -23,14 +31,24 @@ export type PersistentClaudeMcpEntry = {
   removeCommand: string;
 };
 
+export type PersistentClaudeMcpInspectionError = {
+  source: string;
+  message: string;
+};
+
+export type PersistentClaudeMcpInspection = {
+  entries: PersistentClaudeMcpEntry[];
+  errors: PersistentClaudeMcpInspectionError[];
+};
+
 export type PersistentClaudeMcpOptions = {
   cwd?: string;
   homeDir?: string;
 };
 
 export type ReceiverLaunchOptions = PersistentClaudeMcpOptions & {
-  env?: NodeJS.ProcessEnv;
-  findPersistentEntries?: () => Promise<PersistentClaudeMcpEntry[]>;
+  argv?: string[];
+  inspectPersistentEntries?: () => Promise<PersistentClaudeMcpInspection>;
 };
 
 export async function resolveServerCommand(env: NodeJS.ProcessEnv = process.env): Promise<ServerCommand> {
@@ -51,32 +69,40 @@ export async function resolveServerCommand(env: NodeJS.ProcessEnv = process.env)
   };
 }
 
-export function buildSessionMcpConfig(serverCommand: ServerCommand): string {
+export function buildSessionMcpConfig(
+  serverCommand: ServerCommand,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
   return JSON.stringify({
     mcpServers: {
       [CLAUDE_MCP_SERVER_NAME]: {
         command: serverCommand.command,
-        args: serverCommand.args,
-        env: receiverLaunchEnv(),
+        args: receiverLaunchArgs(serverCommand.args),
+        env: receiverRuntimeEnv(env),
       },
     },
   });
 }
 
-export function receiverLaunchEnv(): Record<string, string> {
-  return {
-    [CLAUDE_CHANNEL_LAUNCH_MODE_ENV]: CLAUDE_CHANNEL_START_LAUNCH_MODE,
-  };
+export function receiverLaunchArgs(args: string[] = []): string[] {
+  return [...args, CLAUDE_CHANNEL_RECEIVER_LAUNCH_ARG];
+}
+
+export function receiverRuntimeEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  const runtimeEnv: Record<string, string> = {};
+  for (const key of RECEIVER_RUNTIME_ENV_KEYS) {
+    const value = env[key];
+    if (value !== undefined) runtimeEnv[key] = value;
+  }
+  return runtimeEnv;
 }
 
 export async function assertClaudeChannelReceiverLaunch(options: ReceiverLaunchOptions = {}): Promise<void> {
-  const env = options.env ?? process.env;
-  if (env[CLAUDE_CHANNEL_LAUNCH_MODE_ENV] === CLAUDE_CHANNEL_START_LAUNCH_MODE) return;
+  const argv = options.argv ?? process.argv.slice(2);
+  if (argv.includes(CLAUDE_CHANNEL_RECEIVER_LAUNCH_ARG)) return;
 
-  const entries = await (options.findPersistentEntries ?? (() => findPersistentClaudeMcpEntries(options)))();
-  if (entries.length > 0) {
-    throw new Error(formatPersistentClaudeMcpError(entries));
-  }
+  const inspection = await (options.inspectPersistentEntries ?? (() => inspectPersistentClaudeMcp(options)))();
+  assertNoPersistentClaudeMcpProblems(inspection);
 
   throw new Error([
     `${CLAUDE_MCP_SERVER_NAME} receiver was not started by ${CLAUDE_CHANNEL_LAUNCH_COMMAND}.`,
@@ -86,23 +112,26 @@ export async function assertClaudeChannelReceiverLaunch(options: ReceiverLaunchO
   ].join("\n"));
 }
 
-export async function findPersistentClaudeMcpEntries(
+export async function inspectPersistentClaudeMcp(
   options: PersistentClaudeMcpOptions = {},
-): Promise<PersistentClaudeMcpEntry[]> {
-  const cwd = path.resolve(options.cwd ?? process.cwd());
+): Promise<PersistentClaudeMcpInspection> {
+  const cwd = await canonicalPath(options.cwd ?? process.cwd());
   const homeDir = options.homeDir ?? homedir();
   const entries: PersistentClaudeMcpEntry[] = [];
+  const errors: PersistentClaudeMcpInspectionError[] = [];
 
   const claudeConfigPath = path.join(homeDir, ".claude.json");
-  const claudeConfig = await readJsonIfExists(claudeConfigPath);
-  if (claudeConfig) {
-    if (hasNamedMcpServer(claudeConfig, CLAUDE_MCP_SERVER_NAME)) {
+  const claudeConfig = await readJsonFile(claudeConfigPath);
+  if (!claudeConfig.ok) {
+    errors.push(claudeConfig.error);
+  } else if (claudeConfig.value) {
+    if (hasNamedMcpServer(claudeConfig.value, CLAUDE_MCP_SERVER_NAME)) {
       entries.push(persistentEntry("user", claudeConfigPath));
     }
 
-    const projects = readRecord(claudeConfig.projects);
+    const projects = readRecord(claudeConfig.value.projects);
     for (const [projectPath, projectConfig] of Object.entries(projects ?? {})) {
-      if (path.resolve(projectPath) !== cwd) continue;
+      if (await canonicalPath(projectPath) !== cwd) continue;
       if (hasNamedMcpServer(projectConfig, CLAUDE_MCP_SERVER_NAME)) {
         entries.push(persistentEntry("local", claudeConfigPath));
       }
@@ -110,12 +139,33 @@ export async function findPersistentClaudeMcpEntries(
   }
 
   const projectMcpPath = path.join(cwd, ".mcp.json");
-  const projectMcpConfig = await readJsonIfExists(projectMcpPath);
-  if (hasNamedMcpServer(projectMcpConfig, CLAUDE_MCP_SERVER_NAME)) {
+  const projectMcpConfig = await readJsonFile(projectMcpPath);
+  if (!projectMcpConfig.ok) {
+    errors.push(projectMcpConfig.error);
+  } else if (hasNamedMcpServer(projectMcpConfig.value, CLAUDE_MCP_SERVER_NAME)) {
     entries.push(persistentEntry("project", projectMcpPath));
   }
 
-  return entries;
+  return { entries, errors };
+}
+
+export async function findPersistentClaudeMcpEntries(
+  options: PersistentClaudeMcpOptions = {},
+): Promise<PersistentClaudeMcpEntry[]> {
+  const inspection = await inspectPersistentClaudeMcp(options);
+  if (inspection.errors.length > 0) {
+    throw new Error(formatPersistentClaudeMcpInspectionError(inspection.errors));
+  }
+  return inspection.entries;
+}
+
+export function assertNoPersistentClaudeMcpProblems(inspection: PersistentClaudeMcpInspection): void {
+  if (inspection.errors.length > 0) {
+    throw new Error(formatPersistentClaudeMcpInspectionError(inspection.errors));
+  }
+  if (inspection.entries.length > 0) {
+    throw new Error(formatPersistentClaudeMcpError(inspection.entries));
+  }
 }
 
 export function formatPersistentClaudeMcpError(entries: PersistentClaudeMcpEntry[]): string {
@@ -126,6 +176,19 @@ export function formatPersistentClaudeMcpError(entries: PersistentClaudeMcpEntry
     "claude-channel 0.4 uses session-scoped --mcp-config so normal `claude` launches are not polluted.",
     "Remove the old registration, then rerun the command:",
     ...removeCommands,
+    "",
+  ].join("\n");
+}
+
+export function formatPersistentClaudeMcpInspectionError(errors: PersistentClaudeMcpInspectionError[]): string {
+  return [
+    `Could not inspect Claude MCP configuration for stale ${CLAUDE_MCP_SERVER_NAME} registrations.`,
+    "",
+    "claude-channel 0.4 uses session-scoped --mcp-config so normal `claude` launches are not polluted.",
+    "Cleanup cannot be verified while these files cannot be read or parsed:",
+    ...errors.map((error) => `  ${error.source}: ${error.message}`),
+    "",
+    "Fix or remove the listed file, then rerun the command.",
     "",
   ].join("\n");
 }
@@ -162,12 +225,23 @@ function persistentEntry(scope: PersistentClaudeMcpScope, source: string): Persi
   };
 }
 
-async function readJsonIfExists(file: string): Promise<Record<string, unknown> | undefined> {
+type JsonReadResult =
+  | { ok: true; value: Record<string, unknown> | undefined }
+  | { ok: false; error: PersistentClaudeMcpInspectionError };
+
+async function readJsonFile(file: string): Promise<JsonReadResult> {
   try {
-    return JSON.parse(await readFile(file, "utf8")) as Record<string, unknown>;
+    const parsed = JSON.parse(await readFile(file, "utf8")) as unknown;
+    return { ok: true, value: readRecord(parsed) ?? {} };
   } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT") return undefined;
-    throw error;
+    if (isNodeError(error) && error.code === "ENOENT") return { ok: true, value: undefined };
+    return {
+      ok: false,
+      error: {
+        source: file,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    };
   }
 }
 
@@ -205,6 +279,15 @@ async function exists(file: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+async function canonicalPath(file: string): Promise<string> {
+  const resolved = path.resolve(file);
+  try {
+    return await realpath(resolved);
+  } catch {
+    return resolved;
   }
 }
 
