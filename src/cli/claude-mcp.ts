@@ -7,6 +7,8 @@ export const CLAUDE_MCP_SERVER_NAME = "claude-channel-cli";
 export const CLAUDE_CHANNEL_SERVER_BIN = "claude-channel-server";
 export const CLAUDE_CHANNEL_LAUNCH_COMMAND = "claude-channel start";
 export const CLAUDE_CHANNEL_DEVELOPMENT_CHANNEL = `server:${CLAUDE_MCP_SERVER_NAME}`;
+export const CLAUDE_CHANNEL_LAUNCH_MODE_ENV = "CLAUDE_CHANNEL_LAUNCH_MODE";
+export const CLAUDE_CHANNEL_START_LAUNCH_MODE = "start";
 
 export type ServerCommand = {
   command: string;
@@ -24,6 +26,11 @@ export type PersistentClaudeMcpEntry = {
 export type PersistentClaudeMcpOptions = {
   cwd?: string;
   homeDir?: string;
+};
+
+export type ReceiverLaunchOptions = PersistentClaudeMcpOptions & {
+  env?: NodeJS.ProcessEnv;
+  findPersistentEntries?: () => Promise<PersistentClaudeMcpEntry[]>;
 };
 
 export async function resolveServerCommand(env: NodeJS.ProcessEnv = process.env): Promise<ServerCommand> {
@@ -50,9 +57,33 @@ export function buildSessionMcpConfig(serverCommand: ServerCommand): string {
       [CLAUDE_MCP_SERVER_NAME]: {
         command: serverCommand.command,
         args: serverCommand.args,
+        env: receiverLaunchEnv(),
       },
     },
   });
+}
+
+export function receiverLaunchEnv(): Record<string, string> {
+  return {
+    [CLAUDE_CHANNEL_LAUNCH_MODE_ENV]: CLAUDE_CHANNEL_START_LAUNCH_MODE,
+  };
+}
+
+export async function assertClaudeChannelReceiverLaunch(options: ReceiverLaunchOptions = {}): Promise<void> {
+  const env = options.env ?? process.env;
+  if (env[CLAUDE_CHANNEL_LAUNCH_MODE_ENV] === CLAUDE_CHANNEL_START_LAUNCH_MODE) return;
+
+  const entries = await (options.findPersistentEntries ?? (() => findPersistentClaudeMcpEntries(options)))();
+  if (entries.length > 0) {
+    throw new Error(formatPersistentClaudeMcpError(entries));
+  }
+
+  throw new Error([
+    `${CLAUDE_MCP_SERVER_NAME} receiver was not started by ${CLAUDE_CHANNEL_LAUNCH_COMMAND}.`,
+    "",
+    `Start Claude Code with ${CLAUDE_CHANNEL_LAUNCH_COMMAND}.`,
+    "If this receiver came from an old persistent MCP registration, run `claude-channel setup` in this project for the cleanup command.",
+  ].join("\n"));
 }
 
 export async function findPersistentClaudeMcpEntries(

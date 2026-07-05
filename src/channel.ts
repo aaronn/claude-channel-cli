@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { assertClaudeChannelReceiverLaunch } from "./cli/claude-mcp.js";
 import { readChannelRuntimeConfig } from "./config/env.js";
 import { readOrCreateToken } from "./config/paths.js";
 import { errorMessage, HttpError } from "./errors.js";
@@ -18,6 +19,13 @@ const projectDir = path.resolve(process.env.CLAUDE_CHANNEL_PROJECT_DIR ?? proces
 let endpointRecord: EndpointRecord | undefined;
 let endpointWriteQueue = Promise.resolve();
 let refreshTimer: NodeJS.Timeout | undefined;
+
+try {
+  await assertClaudeChannelReceiverLaunch({ cwd: projectDir });
+} catch (error) {
+  console.error(errorMessage(error));
+  process.exit(1);
+}
 
 const token = await readOrCreateToken();
 const httpServer = createBridgeHttpServer({

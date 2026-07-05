@@ -51,11 +51,17 @@ Use `--` before Claude flags that would otherwise be handled by `claude-channel`
 claude-channel start -- --help
 ```
 
-`claude-channel start` passes a session-scoped MCP config to Claude Code, so ordinary `claude` launches are not changed and do not start the channel receiver. If you previously used `claude-channel setup-mcp` or an early `claude-channel setup`, remove the old persistent MCP registration once:
+`claude-channel start` passes a session-scoped MCP config to Claude Code, so ordinary `claude` launches are not changed and do not start the channel receiver.
+
+### Upgrading from 0.3.x
+
+If you previously used `claude-channel setup-mcp` or an early `claude-channel setup`, those versions wrote a persistent Claude MCP registration into each configured project. Remove that old registration once per project:
 
 ```sh
 claude mcp remove --scope local claude-channel-cli
 ```
+
+Run `claude-channel setup` or `claude-channel start` from a project to check for stale registrations. If either command finds one, it fails closed and prints the exact `claude mcp remove ...` command to run. If a direct `claude` launch in a stale project starts the upgraded receiver through old persistent config, the receiver exits before registering a target and prints the same cleanup guidance. Cleanup is manual on purpose: the CLI will not mutate Claude Code's project configuration without an explicit Claude command from you.
 
 ## Use the CLI
 
@@ -173,7 +179,7 @@ npm run build
 npm link
 ```
 
-`npm link` makes the checkout's `claude-channel` and `claude-channel-server` binaries available on your `PATH`. Then register the linked server from the receiver project:
+`npm link` makes the checkout's `claude-channel` and `claude-channel-server` binaries available on your `PATH`. Then check and start the receiver project:
 
 ```sh
 cd /path/to/receiver-project
@@ -188,7 +194,7 @@ npm run check
 npm run check:local
 ```
 
-`npm run check` runs version alignment, linting, TypeScript checks, and tests. `npm run check:local` also runs `npm audit`, Claude plugin validation, and a package dry-run.
+`npm run check` runs version alignment, linting, TypeScript checks, and tests. `npm run check:local` also runs `npm audit` and a package dry-run.
 
 
 ## Release

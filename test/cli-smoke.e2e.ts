@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -166,6 +166,49 @@ test("built CLI renames a live channel endpoint", async () => {
   }
 });
 
+test("built receiver refuses stale persistent MCP launches before registering an endpoint", async () => {
+  const repoDir = process.cwd();
+  const tempHome = await mkdtemp(path.join(tmpdir(), "claude-channel-home-"));
+  const tempProject = await mkdtemp(path.join(tmpdir(), "claude-channel-project-"));
+  const projectConfigPath = await realpath(tempProject);
+
+  try {
+    await writeFile(
+      path.join(tempHome, ".claude.json"),
+      JSON.stringify({
+        projects: {
+          [projectConfigPath]: {
+            mcpServers: {
+              "claude-channel-cli": {
+                command: process.execPath,
+                args: [path.join(repoDir, "dist/channel.js")],
+              },
+            },
+          },
+        },
+      }),
+      "utf8",
+    );
+
+    const result = await runNode([path.join(repoDir, "dist/channel.js")], {
+      cwd: tempProject,
+      env: {
+        ...process.env,
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+      },
+    });
+
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /Persistent Claude MCP registration/);
+    assert.match(result.stderr, /claude mcp remove --scope local claude-channel-cli/);
+    assert.deepEqual(await endpointFiles(tempHome), []);
+  } finally {
+    await rm(tempHome, { recursive: true, force: true });
+    await rm(tempProject, { recursive: true, force: true });
+  }
+});
+
 async function writeChannelFixture(input: {
   home: string;
   port: number;
@@ -198,7 +241,14 @@ async function runCli(args: string[], options: {
   cwd: string;
   env: NodeJS.ProcessEnv;
 }): Promise<{ code: number | null; stdout: string; stderr: string }> {
-  const child = spawn(process.execPath, [path.join(options.cwd, "dist/cli.js"), ...args], {
+  return runNode([path.join(options.cwd, "dist/cli.js"), ...args], options);
+}
+
+async function runNode(args: string[], options: {
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+}): Promise<{ code: number | null; stdout: string; stderr: string }> {
+  const child = spawn(process.execPath, args, {
     cwd: options.cwd,
     env: options.env,
     stdio: ["ignore", "pipe", "pipe"],
@@ -236,6 +286,15 @@ async function runCli(args: string[], options: {
     return { code, stdout, stderr };
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+async function endpointFiles(home: string): Promise<string[]> {
+  try {
+    return await readdir(path.join(home, ".claude-channel", "endpoints"));
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return [];
+    throw error;
   }
 }
 

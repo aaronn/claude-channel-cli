@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  assertClaudeChannelReceiverLaunch,
   buildSessionMcpConfig,
+  CLAUDE_CHANNEL_LAUNCH_MODE_ENV,
+  CLAUDE_CHANNEL_START_LAUNCH_MODE,
   findPersistentClaudeMcpEntries,
   formatPersistentClaudeMcpError,
   formatShellCommand,
@@ -26,6 +29,9 @@ test("buildSessionMcpConfig defines the channel server without persistent regist
         "claude-channel-cli": {
           command: "/usr/local/bin/claude-channel-server",
           args: [],
+          env: {
+            [CLAUDE_CHANNEL_LAUNCH_MODE_ENV]: CLAUDE_CHANNEL_START_LAUNCH_MODE,
+          },
         },
       },
     }),
@@ -57,6 +63,43 @@ test("setup fails closed when stale persistent registrations exist", async () =>
       ],
     }),
     /Persistent Claude MCP registration/,
+  );
+});
+
+test("receiver launch check accepts the start command marker", async () => {
+  await assert.doesNotReject(assertClaudeChannelReceiverLaunch({
+    env: {
+      [CLAUDE_CHANNEL_LAUNCH_MODE_ENV]: CLAUDE_CHANNEL_START_LAUNCH_MODE,
+    },
+    findPersistentEntries: async () => {
+      throw new Error("should not inspect persistent config");
+    },
+  }));
+});
+
+test("receiver launch check rejects stale persistent registrations before endpoint registration", async () => {
+  await assert.rejects(
+    assertClaudeChannelReceiverLaunch({
+      env: {},
+      findPersistentEntries: async () => [
+        {
+          scope: "local",
+          source: "/tmp/.claude.json",
+          removeCommand: "claude mcp remove --scope local claude-channel-cli",
+        },
+      ],
+    }),
+    /claude mcp remove --scope local claude-channel-cli/,
+  );
+});
+
+test("receiver launch check rejects unknown unmarked launches", async () => {
+  await assert.rejects(
+    assertClaudeChannelReceiverLaunch({
+      env: {},
+      findPersistentEntries: async () => [],
+    }),
+    /was not started by claude-channel start/,
   );
 });
 

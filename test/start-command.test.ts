@@ -4,17 +4,32 @@ import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import type { ServerCommand } from "../src/cli/claude-mcp.js";
+import {
+  CLAUDE_CHANNEL_LAUNCH_MODE_ENV,
+  CLAUDE_CHANNEL_START_LAUNCH_MODE,
+  type ServerCommand,
+} from "../src/cli/claude-mcp.js";
 import { buildClaudeStartArgs, formatNativeStartCommand } from "../src/cli/start.js";
 
 const serverCommand: ServerCommand = {
   command: "claude-channel-server",
   args: [],
 };
+const sessionMcpArg = `--mcp-config=${JSON.stringify({
+  mcpServers: {
+    "claude-channel-cli": {
+      command: "claude-channel-server",
+      args: [],
+      env: {
+        [CLAUDE_CHANNEL_LAUNCH_MODE_ENV]: CLAUDE_CHANNEL_START_LAUNCH_MODE,
+      },
+    },
+  },
+})}`;
 
 test("buildClaudeStartArgs enables the claude-channel server and forwards args", () => {
   assert.deepEqual(buildClaudeStartArgs(serverCommand, ["--model", "opus", "--continue"]), [
-    "--mcp-config={\"mcpServers\":{\"claude-channel-cli\":{\"command\":\"claude-channel-server\",\"args\":[]}}}",
+    sessionMcpArg,
     "--dangerously-load-development-channels",
     "server:claude-channel-cli",
     "--model",
@@ -26,7 +41,7 @@ test("buildClaudeStartArgs enables the claude-channel server and forwards args",
 test("formatNativeStartCommand shell-quotes forwarded args", () => {
   assert.equal(
     formatNativeStartCommand(serverCommand, ["--name", "review left"]),
-    "claude '--mcp-config={\"mcpServers\":{\"claude-channel-cli\":{\"command\":\"claude-channel-server\",\"args\":[]}}}' --dangerously-load-development-channels server:claude-channel-cli --name 'review left'",
+    `claude '${sessionMcpArg}' --dangerously-load-development-channels server:claude-channel-cli --name 'review left'`,
   );
 });
 
@@ -34,7 +49,7 @@ test("start command forwards option-first Claude args through commander", async 
   const captured = await runStartWithFakeClaude(["--model", "opus", "--continue"]);
 
   assert.deepEqual(captured, [
-    "--mcp-config={\"mcpServers\":{\"claude-channel-cli\":{\"command\":\"claude-channel-server\",\"args\":[]}}}",
+    sessionMcpArg,
     "--dangerously-load-development-channels",
     "server:claude-channel-cli",
     "--model",
@@ -47,7 +62,7 @@ test("start command forwards args after separator through commander", async () =
   const captured = await runStartWithFakeClaude(["--", "--help"]);
 
   assert.deepEqual(captured, [
-    "--mcp-config={\"mcpServers\":{\"claude-channel-cli\":{\"command\":\"claude-channel-server\",\"args\":[]}}}",
+    sessionMcpArg,
     "--dangerously-load-development-channels",
     "server:claude-channel-cli",
     "--help",
