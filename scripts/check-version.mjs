@@ -5,7 +5,6 @@ const expected = packageJson.version;
 
 const checks = [
   ["src/version.ts", await readVersionConstant("src/version.ts")],
-  [".claude-plugin/plugin.json", (await readJson(".claude-plugin/plugin.json")).version],
   [".codex-plugin/plugin.json", (await readJson(".codex-plugin/plugin.json")).version],
 ];
 

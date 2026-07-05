@@ -1,6 +1,6 @@
 {
   "name": "claude-channel-cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Local Claude Code channel CLI for asking a live Claude Code session and receiving replies.",
   "license": "MIT",
   "repository": {
@@ -14,11 +14,9 @@
   "type": "module",
   "files": [
     "dist",
-    ".claude-plugin",
     ".codex-plugin",
     "assets",
     ".mcp.json",
-    ".mcp.example.json",
     "skills",
     "README.md",
     "LICENSE"
@@ -40,8 +38,7 @@
     "test:e2e": "npm run build && node --import tsx --test test/**/*.e2e.ts",
     "check:version": "node ./scripts/check-version.mjs",
     "check": "npm run check:version && npm run lint && npm run typecheck && npm run typecheck:test && npm test && npm run test:e2e",
-    "validate:plugin": "claude plugin validate . --strict",
-    "check:local": "npm run check && npm audit --audit-level=moderate && npm run validate:plugin && npm pack --dry-run",
+    "check:local": "npm run check && npm audit --audit-level=moderate && npm pack --dry-run",
     "prepack": "npm run build"
   },
   "engines": {

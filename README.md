@@ -16,21 +16,46 @@ npm install -g claude-channel-cli
 This makes the `claude-channel` command available on your `PATH`.
 
 
+## Requirements
+
+- Claude Code 2.1.80 or newer.
+- Claude Code authenticated with claude.ai or a Console API key.
+- Claude Code Channels enabled. Enterprise deployments may need `channelsEnabled`.
+- Channels are not available through Bedrock, Vertex, or Foundry providers.
+
+
 ## Start Claude Code
 
-Claude Channel is not approved by Anthropic's marketplace yet. For now, register the receiver-side MCP server once from each project directory where you want Claude Code to receive channel requests:
+Optionally check each project directory where you want Claude Code to receive channel requests:
 
 ```sh
 cd ~/github/my_project/
-claude-channel setup-mcp
+claude-channel setup
 ```
 
-Then start Claude Code from that same project, or resume a thread there. The explicit channel flag is required until the plugin is available through Anthropic's marketplace:
+Then start Claude Code from that project with:
 
 ```sh
-claude --dangerously-load-development-channels server:claude-channel-cli
+claude-channel start
 ```
 
+Pass normal Claude Code flags after `start`:
+
+```sh
+claude-channel start --model opus --continue
+```
+
+Use `--` before Claude flags that would otherwise be handled by `claude-channel`, such as `--help`:
+
+```sh
+claude-channel start -- --help
+```
+
+`claude-channel start` passes a session-scoped MCP config to Claude Code, so ordinary `claude` launches are not changed and do not start the channel receiver. If you previously used `claude-channel setup-mcp` or an early `claude-channel setup`, remove the old persistent MCP registration once:
+
+```sh
+claude mcp remove --scope local claude-channel-cli
+```
 
 ## Use the CLI
 
@@ -115,7 +140,7 @@ claude-channel ask --to review-left "From Codex: review this diff."
 For scripted launches, set the startup display name before starting Claude Code:
 
 ```sh
-CLAUDE_CHANNEL_DISPLAY_NAME=review-left claude --dangerously-load-development-channels server:claude-channel-cli
+CLAUDE_CHANNEL_DISPLAY_NAME=review-left claude-channel start
 ```
 
 Display names cannot be only digits, look like endpoint ids, or contain control/formatting characters, because numeric targets, endpoint ids, and invisible text are reserved for safe targeting.
@@ -152,20 +177,9 @@ npm link
 
 ```sh
 cd /path/to/receiver-project
-claude-channel setup-mcp --force
-claude --dangerously-load-development-channels server:claude-channel-cli
+claude-channel setup
+claude-channel start
 ```
-
-The Claude plugin manifest lives at `.claude-plugin/plugin.json`. For local development, first validate that packaging:
-
-```sh
-npm run build
-claude plugin validate . --strict
-claude --plugin-dir .
-```
-
-`--plugin-dir` checks plugin loading. `.mcp.example.json` is only a template if you need to inspect or hand-build the MCP config.
-
 
 Quick checks:
 

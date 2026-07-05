@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { TargetResolutionError } from "../src/channel-client/target-resolver.js";
 import { callCodexChannelTool, listCodexChannelTools, type CodexChannelToolDeps } from "../src/codex-mcp/server.js";
 import { createCodexToolDeps, testCandidate, testEndpoint, toolText } from "./helpers.js";
@@ -80,6 +83,40 @@ test("ask_claude passes target through to channel client", async () => {
   assert.deepEqual(calls, [
     ["From Codex: review", { target: "app", sender: undefined, timeoutMs: 1_800_000 }],
   ]);
+});
+
+test("ask_claude spills large answers to a file instead of duplicating them in the MCP result", async () => {
+  const previousAnswerDir = process.env.CLAUDE_CHANNEL_CODEX_ANSWER_DIR;
+  const answerDir = await mkdtemp(path.join(tmpdir(), "claude-channel-answer-"));
+  process.env.CLAUDE_CHANNEL_CODEX_ANSWER_DIR = answerDir;
+  const answer = "x".repeat(128_001);
+  const testDeps = createCodexToolDeps();
+  testDeps.ask = async () => ({
+    ok: true,
+    target: testEndpoint.endpoint_id,
+    request_id: "req_large123",
+    status: "answered",
+    answer,
+  });
+
+  try {
+    const result = await callCodexChannelTool("ask_claude", { message: "From Codex: review" }, testDeps);
+    const answerFile = result.structuredContent?.answer_file;
+
+    assert.equal(result.isError, false);
+    assert.equal(result.structuredContent?.answer_truncated, true);
+    assert.equal(result.structuredContent?.answer_bytes, 128_001);
+    assert.equal(typeof answerFile, "string");
+    assert.equal(await readFile(answerFile as string, "utf8"), answer);
+    assert.doesNotMatch(toolText(result), new RegExp(`x{${128_001}}`));
+  } finally {
+    if (previousAnswerDir === undefined) {
+      delete process.env.CLAUDE_CHANNEL_CODEX_ANSWER_DIR;
+    } else {
+      process.env.CLAUDE_CHANNEL_CODEX_ANSWER_DIR = previousAnswerDir;
+    }
+    await rm(answerDir, { recursive: true, force: true });
+  }
 });
 
 test("ask_claude defaults to 30 minute timeout", async () => {

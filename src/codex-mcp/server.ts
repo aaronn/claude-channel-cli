@@ -1,9 +1,12 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { askClaude, type TargetedAskResponse } from "../channel-client/client.js";
 import { readChannelStatus, type ChannelStatusResult } from "../channel-client/status.js";
 import { TargetResolutionError } from "../channel-client/target-resolver.js";
 import { DEFAULT_ASK_TIMEOUT_MS } from "../config/defaults.js";
+import { bridgeDir } from "../config/paths.js";
 import { errorMessage } from "../errors.js";
 import { toEndpointCandidates, type EndpointCandidate } from "../registry/endpoint-record.js";
 import { listLiveEndpoints } from "../registry/endpoint-store.js";
@@ -26,6 +29,9 @@ export type CodexChannelToolDeps = {
 const LIST_TOOL = "list_claude_targets";
 const STATUS_TOOL = "status_claude_channel";
 const ASK_TOOL = "ask_claude";
+const INLINE_ASK_ANSWER_MAX_BYTES = 128_000;
+const ASK_ANSWER_PREVIEW_CHARS = 8_000;
+const CODEX_ANSWER_DIR_ENV = "CLAUDE_CHANNEL_CODEX_ANSWER_DIR";
 
 const defaultDeps: CodexChannelToolDeps = {
   list: async () => ({ targets: toEndpointCandidates(await listLiveEndpoints()) }),
@@ -111,7 +117,7 @@ export async function callCodexChannelTool(
 
     if (name === ASK_TOOL) {
       const input = parseAskArgs(args);
-      return toolResult(await deps.ask(input.message, {
+      return askToolResult(await deps.ask(input.message, {
         target: input.target,
         sender: input.sender,
         timeoutMs: input.timeoutMs,
@@ -189,6 +195,65 @@ function toolResult(data: JsonObject, isError = false): CallToolResult {
     structuredContent: data,
     isError,
   };
+}
+
+async function askToolResult(response: TargetedAskResponse): Promise<CallToolResult> {
+  const answerBytes = Buffer.byteLength(response.answer, "utf8");
+  if (answerBytes <= INLINE_ASK_ANSWER_MAX_BYTES) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: response.answer,
+        },
+      ],
+      structuredContent: response,
+      isError: false,
+    };
+  }
+
+  const answerFile = await writeLargeAnswer(response);
+  const preview = previewAnswer(response.answer);
+  const structuredContent = {
+    ok: response.ok,
+    target: response.target,
+    request_id: response.request_id,
+    status: response.status,
+    answer: preview,
+    answer_truncated: true,
+    answer_bytes: answerBytes,
+    answer_file: answerFile,
+  };
+
+  return {
+    content: [
+      {
+        type: "text",
+        text: [
+          `Claude returned a large ${answerBytes} byte answer.`,
+          `Full answer saved to: ${answerFile}`,
+          "",
+          "Preview:",
+          preview,
+        ].join("\n"),
+      },
+    ],
+    structuredContent,
+    isError: false,
+  };
+}
+
+async function writeLargeAnswer(response: TargetedAskResponse): Promise<string> {
+  const dir = process.env[CODEX_ANSWER_DIR_ENV] ?? join(bridgeDir, "codex-answers");
+  await mkdir(dir, { recursive: true, mode: 0o700 });
+  const file = join(dir, `${response.request_id}.txt`);
+  await writeFile(file, response.answer, { encoding: "utf8", mode: 0o600 });
+  return file;
+}
+
+function previewAnswer(answer: string): string {
+  if (answer.length <= ASK_ANSWER_PREVIEW_CHARS) return answer;
+  return `${answer.slice(0, ASK_ANSWER_PREVIEW_CHARS)}\n\n[answer truncated; read answer_file for the full response]`;
 }
 
 function toolErrorPayload(error: unknown): JsonObject {

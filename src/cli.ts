@@ -13,7 +13,8 @@ import {
 import { readPromptInput } from "./cli/input.js";
 import { formatAmbiguousTargets, formatEndpointList } from "./cli/list-format.js";
 import { formatSetupCodexPluginResult, setupCodexPlugin } from "./cli/setup-codex-plugin.js";
-import { formatSetupMcpResult, setupMcp } from "./cli/setup-mcp.js";
+import { formatSetupResult, setup } from "./cli/setup.js";
+import { startClaude } from "./cli/start.js";
 import { startWaitFeedback } from "./cli/wait-feedback.js";
 import { toEndpointCandidates } from "./registry/endpoint-record.js";
 import { listLiveEndpoints } from "./registry/endpoint-store.js";
@@ -39,10 +40,8 @@ type RenameOptions = {
   to: string;
 };
 
-type SetupMcpCommandOptions = {
-  scope?: string;
+type SetupCommandOptions = {
   dryRun?: boolean;
-  force?: boolean;
 };
 
 type SetupCodexPluginCommandOptions = {
@@ -91,8 +90,12 @@ async function rename(displayName: string, options: RenameOptions): Promise<void
   process.stdout.write(`Renamed ${result.target} to ${result.display_name}\n`);
 }
 
-async function setupMcpCommand(options: SetupMcpCommandOptions): Promise<void> {
-  process.stdout.write(formatSetupMcpResult(await setupMcp(options)));
+async function setupCommand(options: SetupCommandOptions): Promise<void> {
+  process.stdout.write(formatSetupResult(await setup(options)));
+}
+
+function legacySetupMcpCommand(): never {
+  throw new Error("setup-mcp has been removed. claude-channel 0.4 uses session-scoped MCP config; run `claude-channel setup` to check for stale persistent registrations, then start Claude with `claude-channel start`.");
 }
 
 async function setupCodexPluginCommand(options: SetupCodexPluginCommandOptions): Promise<void> {
@@ -104,7 +107,8 @@ const program = new Command();
 program
   .name("claude-channel")
   .description("Ask a live Claude Code session through a local CLI channel.")
-  .version(VERSION);
+  .version(VERSION)
+  .enablePositionalOptions();
 
 program
   .command("status")
@@ -131,14 +135,40 @@ program
   });
 
 program
-  .command("setup-mcp")
-  .description("Register the Claude channel MCP server with Claude Code.")
-  .option("--scope <scope>", "Claude MCP scope: local or user. Defaults to local.")
-  .option("--force", "Remove an existing claude-channel-cli MCP entry at that scope before adding it.")
-  .option("--dry-run", "Print the Claude MCP command that would be run without changing config.")
-  .action(async (options: SetupMcpCommandOptions) => {
+  .command("setup")
+  .description("Check this project for Claude Channel receiver readiness.")
+  .option("--dry-run", "Run the setup check without changing config.")
+  .action(async (options: SetupCommandOptions) => {
     try {
-      await setupMcpCommand(options);
+      await setupCommand(options);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+program
+  .command("setup-mcp")
+  .description("Deprecated. Use setup instead.")
+  .allowUnknownOption(true)
+  .allowExcessArguments(true)
+  .action(() => {
+    try {
+      legacySetupMcpCommand();
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+program
+  .command("start")
+  .description("Start Claude Code with the Claude Channel receiver enabled.")
+  .allowUnknownOption(true)
+  .allowExcessArguments(true)
+  .passThroughOptions()
+  .argument("[claudeArgs...]", "Arguments to forward to Claude Code.")
+  .action(async (claudeArgs: string[]) => {
+    try {
+      await startClaude(claudeArgs);
     } catch (error) {
       fail(error);
     }
