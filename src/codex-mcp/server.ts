@@ -1,12 +1,9 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { chmod, mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { askClaude, type TargetedAskResponse } from "../channel-client/client.js";
 import { readChannelStatus, type ChannelStatusResult } from "../channel-client/status.js";
 import { TargetResolutionError } from "../channel-client/target-resolver.js";
 import { DEFAULT_ASK_TIMEOUT_MS } from "../config/defaults.js";
-import { bridgeDir } from "../config/paths.js";
 import { errorMessage } from "../errors.js";
 import { toEndpointCandidates, type EndpointCandidate } from "../registry/endpoint-record.js";
 import { listLiveEndpoints } from "../registry/endpoint-store.js";
@@ -29,11 +26,6 @@ export type CodexChannelToolDeps = {
 const LIST_TOOL = "list_claude_targets";
 const STATUS_TOOL = "status_claude_channel";
 const ASK_TOOL = "ask_claude";
-const INLINE_ASK_ANSWER_MAX_BYTES = 128_000;
-const ASK_ANSWER_PREVIEW_CHARS = 8_000;
-const CODEX_ANSWER_DIR_ENV = "CLAUDE_CHANNEL_CODEX_ANSWER_DIR";
-const ANSWER_ARTIFACT_MAX_COUNT = 100;
-const ANSWER_ARTIFACT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const defaultDeps: CodexChannelToolDeps = {
   list: async () => ({ targets: toEndpointCandidates(await listLiveEndpoints()) }),
@@ -119,7 +111,7 @@ export async function callCodexChannelTool(
 
     if (name === ASK_TOOL) {
       const input = parseAskArgs(args);
-      return await askToolResult(await deps.ask(input.message, {
+      return toolResult(await deps.ask(input.message, {
         target: input.target,
         sender: input.sender,
         timeoutMs: input.timeoutMs,
@@ -197,117 +189,6 @@ function toolResult(data: JsonObject, isError = false): CallToolResult {
     structuredContent: data,
     isError,
   };
-}
-
-async function askToolResult(response: TargetedAskResponse): Promise<CallToolResult> {
-  const answerBytes = Buffer.byteLength(response.answer, "utf8");
-  if (answerBytes <= INLINE_ASK_ANSWER_MAX_BYTES) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: response.answer,
-        },
-      ],
-      structuredContent: {
-        ...response,
-        answer_truncated: false,
-        answer_bytes: answerBytes,
-      },
-      isError: false,
-    };
-  }
-
-  const answerFile = await writeLargeAnswer(response);
-  const answerPreview = previewAnswer(response.answer);
-  const structuredContent = {
-    ok: response.ok,
-    target: response.target,
-    request_id: response.request_id,
-    status: response.status,
-    answer_preview: answerPreview,
-    answer_truncated: true,
-    answer_bytes: answerBytes,
-    answer_file: answerFile,
-  };
-
-  return {
-    content: [
-      {
-        type: "text",
-        text: [
-          `Claude returned a large ${answerBytes} byte answer.`,
-          `Full answer saved to: ${answerFile}`,
-          "",
-          "Preview:",
-          answerPreview,
-        ].join("\n"),
-      },
-    ],
-    structuredContent,
-    isError: false,
-  };
-}
-
-async function writeLargeAnswer(response: TargetedAskResponse): Promise<string> {
-  const dir = resolveCodexAnswerArtifactDir();
-  await prepareAnswerArtifactDir(dir);
-  const file = join(dir, `${response.request_id}.txt`);
-  await writeFile(file, response.answer, { encoding: "utf8", mode: 0o600 });
-  await chmod(file, 0o600).catch(() => undefined);
-  await pruneAnswerArtifacts(dir);
-  return file;
-}
-
-export function resolveCodexAnswerArtifactDir(env: NodeJS.ProcessEnv = process.env): string {
-  const configured = env[CODEX_ANSWER_DIR_ENV]?.trim();
-  return configured && configured.length > 0 ? configured : join(bridgeDir, "codex-answers");
-}
-
-async function prepareAnswerArtifactDir(dir: string): Promise<void> {
-  await mkdir(dir, { recursive: true, mode: 0o700 });
-  await chmod(dir, 0o700).catch(() => undefined);
-}
-
-async function pruneAnswerArtifacts(dir: string, now = Date.now()): Promise<void> {
-  const artifacts = await answerArtifacts(dir);
-  const expired = new Set(
-    artifacts
-      .filter((artifact) => now - artifact.mtimeMs > ANSWER_ARTIFACT_MAX_AGE_MS)
-      .map((artifact) => artifact.file),
-  );
-
-  for (const file of expired) {
-    await rm(file, { force: true });
-  }
-
-  const retained = artifacts
-    .filter((artifact) => !expired.has(artifact.file))
-    .sort((left, right) => right.mtimeMs - left.mtimeMs);
-
-  for (const artifact of retained.slice(ANSWER_ARTIFACT_MAX_COUNT)) {
-    await rm(artifact.file, { force: true });
-  }
-}
-
-async function answerArtifacts(dir: string): Promise<Array<{ file: string; mtimeMs: number }>> {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const artifacts: Array<{ file: string; mtimeMs: number }> = [];
-  for (const entry of entries) {
-    if (!entry.isFile() || !/^req_[A-Za-z0-9]+\.txt$/.test(entry.name)) continue;
-    const file = join(dir, entry.name);
-    try {
-      artifacts.push({ file, mtimeMs: (await stat(file)).mtimeMs });
-    } catch {
-      // The artifact directory is best-effort; ignore files removed concurrently.
-    }
-  }
-  return artifacts;
-}
-
-function previewAnswer(answer: string): string {
-  if (answer.length <= ASK_ANSWER_PREVIEW_CHARS) return answer;
-  return `${answer.slice(0, ASK_ANSWER_PREVIEW_CHARS)}\n\n[answer truncated; read answer_file for the full response]`;
 }
 
 function toolErrorPayload(error: unknown): JsonObject {
