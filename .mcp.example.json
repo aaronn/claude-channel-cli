@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "claude-channel-cli": {
-      "command": "node",
-      "args": ["${CLAUDE_CHANNEL_CLI_DIR}/dist/channel.js"]
-    }
-  }
-}

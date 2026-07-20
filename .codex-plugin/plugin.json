@@ -14,7 +14,7 @@
     "local"
   ],
   "skills": "./skills/",
-  "mcpServers": "./.mcp.json",
+  "mcpServers": "./codex-mcp.json",
   "interface": {
     "displayName": "Claude Channel",
     "shortDescription": "Use the local Claude channel from Codex",

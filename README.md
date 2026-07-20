@@ -16,21 +16,54 @@ npm install -g claude-channel-cli
 This makes the `claude-channel` command available on your `PATH`.
 
 
+## Requirements
+
+- Claude Code 2.1.80 or newer.
+- Claude Code authenticated with claude.ai or a Console API key.
+- Claude Code Channels enabled. Team and Enterprise organizations must enable `channelsEnabled`.
+- Channels are not available through Bedrock, Vertex, or Foundry providers.
+
+
 ## Start Claude Code
 
-Claude Channel is not approved by Anthropic's marketplace yet. For now, register the receiver-side MCP server once from each project directory where you want Claude Code to receive channel requests:
+Optionally check each project directory where you want Claude Code to receive channel requests. This is a read-only readiness and stale-registration check:
 
 ```sh
 cd ~/github/my_project/
-claude-channel setup-mcp
+claude-channel setup
 ```
 
-Then start Claude Code from that same project, or resume a thread there. The explicit channel flag is required until the plugin is available through Anthropic's marketplace:
+Then start Claude Code from that project with:
 
 ```sh
-claude --dangerously-load-development-channels server:claude-channel-cli
+claude-channel start
 ```
 
+Pass normal Claude Code flags after `start`:
+
+```sh
+claude-channel start --model opus --continue
+```
+
+Use `--` before Claude flags that would otherwise be handled by `claude-channel`, such as `--version`:
+
+```sh
+claude-channel start -- --version
+```
+
+`claude-channel start` passes a session-scoped MCP config to Claude Code, so ordinary `claude` launches are not changed and do not start the channel receiver.
+
+The receiver is intentionally not a standalone command. Start it through `claude-channel start` so the session-scoped MCP config and launch marker are generated together.
+
+### Upgrading from 0.3.x
+
+If you previously used `claude-channel setup-mcp` or an early `claude-channel setup`, those versions wrote a persistent Claude MCP registration into each configured project. Remove that old registration once per project:
+
+```sh
+claude mcp remove --scope local claude-channel-cli
+```
+
+Run `claude-channel setup` or `claude-channel start` from a project to check for stale registrations. If either command finds one, it fails closed and prints the exact `claude mcp remove ...` command to run. If a direct `claude` launch in a stale project starts the upgraded receiver through old persistent config, the receiver exits before registering a target and prints the same cleanup guidance. Cleanup is manual on purpose: the CLI will not mutate Claude Code's project configuration without an explicit Claude command from you.
 
 ## Use the CLI
 
@@ -115,7 +148,7 @@ claude-channel ask --to review-left "From Codex: review this diff."
 For scripted launches, set the startup display name before starting Claude Code:
 
 ```sh
-CLAUDE_CHANNEL_DISPLAY_NAME=review-left claude --dangerously-load-development-channels server:claude-channel-cli
+CLAUDE_CHANNEL_DISPLAY_NAME=review-left claude-channel start
 ```
 
 Display names cannot be only digits, look like endpoint ids, or contain control/formatting characters, because numeric targets, endpoint ids, and invisible text are reserved for safe targeting.
@@ -148,24 +181,13 @@ npm run build
 npm link
 ```
 
-`npm link` makes the checkout's `claude-channel` and `claude-channel-server` binaries available on your `PATH`. Then register the linked server from the receiver project:
+`npm link` makes the checkout's `claude-channel` and `claude-channel-server` binaries available on your `PATH`. Then check and start the receiver project through the wrapper:
 
 ```sh
 cd /path/to/receiver-project
-claude-channel setup-mcp --force
-claude --dangerously-load-development-channels server:claude-channel-cli
+claude-channel setup
+claude-channel start
 ```
-
-The Claude plugin manifest lives at `.claude-plugin/plugin.json`. For local development, first validate that packaging:
-
-```sh
-npm run build
-claude plugin validate . --strict
-claude --plugin-dir .
-```
-
-`--plugin-dir` checks plugin loading. `.mcp.example.json` is only a template if you need to inspect or hand-build the MCP config.
-
 
 Quick checks:
 
@@ -174,7 +196,7 @@ npm run check
 npm run check:local
 ```
 
-`npm run check` runs version alignment, linting, TypeScript checks, and tests. `npm run check:local` also runs `npm audit`, Claude plugin validation, and a package dry-run.
+`npm run check` runs version alignment, linting, TypeScript checks, and tests. `npm run check:local` also runs `npm audit` and a package dry-run.
 
 
 ## Release

@@ -30,7 +30,7 @@ Use the bundled Claude Channel CLI MCP tools to communicate with the user's live
 - For very large CLI fallback reviews, redirect answer text to a visible file instead of relying on terminal output capture.
 - When multiple live targets exist, ask the user to choose from `candidates`; never guess from branch names, task names, terminal titles, or transcript names.
 - Prefer endpoint ids for retries and scripts. Numeric list indexes are acceptable only for immediate human CLI fallback.
-- If `status_claude_channel` reports the channel is not reachable, tell the user the channel is not running and ask them to start Claude Code with the `claude-channel-cli` channel enabled.
+- If `status_claude_channel` reports the channel is not reachable, tell the user the channel is not running and ask them to start Claude Code in the receiver project with `claude-channel start`. `claude-channel setup` is only a readiness and stale-registration check.
 
 ## CLI Fallback
 
@@ -39,6 +39,8 @@ Use this only when the Codex MCP tools are not installed or not available in the
 ```sh
 claude-channel list
 claude-channel status
+claude-channel setup
+claude-channel start
 claude-channel ask --to ep_ABC234 "From Codex: review this plan and return your answer with complete_channel_request."
 printf '%s\n' "$prompt" | claude-channel ask-file --to ep_ABC234 -
 printf '%s\n' "$prompt" | claude-channel ask-file --output json --to ep_ABC234 - > claude-review.json

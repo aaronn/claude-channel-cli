@@ -14,11 +14,9 @@
   "type": "module",
   "files": [
     "dist",
-    ".claude-plugin",
     ".codex-plugin",
     "assets",
-    ".mcp.json",
-    ".mcp.example.json",
+    "codex-mcp.json",
     "skills",
     "README.md",
     "LICENSE"
@@ -30,8 +28,6 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc && node ./scripts/make-cli-executable.mjs",
-    "dev:channel": "tsx ./src/channel.ts",
-    "channel": "node ./dist/channel.js",
     "codex-mcp": "node ./dist/codex-mcp.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -40,8 +36,7 @@
     "test:e2e": "npm run build && node --import tsx --test test/**/*.e2e.ts",
     "check:version": "node ./scripts/check-version.mjs",
     "check": "npm run check:version && npm run lint && npm run typecheck && npm run typecheck:test && npm test && npm run test:e2e",
-    "validate:plugin": "claude plugin validate . --strict",
-    "check:local": "npm run check && npm audit --audit-level=moderate && npm run validate:plugin && npm pack --dry-run",
+    "check:local": "npm run check && npm audit --audit-level=moderate && npm pack --dry-run",
     "prepack": "npm run build"
   },
   "engines": {
@@ -50,6 +45,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "commander": "^14.0.3",
+    "foreground-child": "^4.0.3",
     "undici": "^7.27.2"
   },
   "devDependencies": {
