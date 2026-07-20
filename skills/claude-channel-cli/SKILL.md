@@ -25,7 +25,7 @@ Use the bundled Claude Channel CLI MCP tools to communicate with the user's live
 - For long or multiline exact prompts, pass the block directly as MCP `message`. In CLI fallback, stream only that block to `ask-file -`; never include Codex-only handling instructions in file/stdin payloads.
 - When content comes from another tool or plugin, summarize it only if the user asked for a summary. If the user asks to send it exactly, pass the selected text exactly.
 - Keep messages explicit about their source, e.g. start with `From Codex:`.
-- After `ask_claude` returns, use the structured `answer` field. Do not dump raw JSON unless debugging.
+- After `ask_claude` returns, use the structured `answer` field when `answer_truncated` is false. If `answer_truncated` is true, use `answer_preview` only for orientation and read the full response from `answer_file` before acting on it. Do not dump raw JSON unless debugging.
 - CLI fallback `ask` and `ask-file` print Claude's answer text by default. Use `--output json` only when the full response envelope is needed.
 - For very large CLI fallback reviews, redirect answer text to a visible file instead of relying on terminal output capture.
 - When multiple live targets exist, ask the user to choose from `candidates`; never guess from branch names, task names, terminal titles, or transcript names.
