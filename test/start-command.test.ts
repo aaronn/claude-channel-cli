@@ -122,6 +122,7 @@ test("start command forwards parent-only SIGTERM to Claude and exits", async () 
   const signalPath = path.join(dir, "signal.txt");
   const childPidPath = path.join(dir, "child-pid.txt");
   const fakeClaude = path.join(dir, "claude");
+  const fakeServer = path.join(dir, "claude-channel-server");
   await writeFile(
     fakeClaude,
     [
@@ -138,6 +139,8 @@ test("start command forwards parent-only SIGTERM to Claude and exits", async () 
     "utf8",
   );
   await chmod(fakeClaude, 0o755);
+  await writeFile(fakeServer, "#!/bin/sh\nexit 0\n", "utf8");
+  await chmod(fakeServer, 0o755);
 
   try {
     const child = spawn(process.execPath, ["--import", "tsx", "src/cli.ts", "start"], {
