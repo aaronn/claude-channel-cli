@@ -187,12 +187,33 @@ test("start command reports a friendly error when Claude is not on PATH", async 
   }
 });
 
-test("launcher reports foreground-child spawn errors without uncaught exceptions", async () => {
+test("launcher rejects Windows command shims before starting Claude", async () => {
+  let launched = false;
+
   await assert.rejects(
     launchClaudeForeground([], {
-      env: { PATH: "/fake" },
-      findExecutable: async () => "/fake/claude",
+      env: { PATH: "C:\\fake" },
+      platform: "win32",
+      findExecutable: async () => "C:\\fake\\claude.cmd",
       foregroundChild: () => {
+        launched = true;
+        return new EventEmitter() as ChildProcess;
+      },
+    }),
+    /requires a native Windows executable.*claude\.cmd.*native Windows installer/,
+  );
+  assert.equal(launched, false);
+});
+
+test("launcher starts native Windows executables without a shell and reports spawn errors", async () => {
+  await assert.rejects(
+    launchClaudeForeground([], {
+      env: { PATH: "C:\\fake" },
+      platform: "win32",
+      findExecutable: async () => "C:\\fake\\claude.exe",
+      foregroundChild: (program, _args, spawnOptions) => {
+        assert.equal(program, "C:\\fake\\claude.exe");
+        assert.equal(spawnOptions.shell, undefined);
         const child = new EventEmitter() as ChildProcess;
         setImmediate(() => {
           child.emit("error", Object.assign(new Error("permission denied"), { code: "EACCES" }));

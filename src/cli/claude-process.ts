@@ -24,6 +24,12 @@ export async function resolveClaudeExecutable(options: ClaudeExecutableOptions =
   if (!executable) {
     throw new Error("Claude Code CLI (`claude`) not found on PATH.");
   }
+  if (platform === "win32" && !isNativeWindowsExecutable(executable)) {
+    throw new Error(
+      `Claude Code CLI requires a native Windows executable, but PATH resolved ${JSON.stringify(executable)}. `
+      + "Install Claude Code with the native Windows installer so `claude.exe` is on PATH.",
+    );
+  }
   return executable;
 }
 
@@ -32,11 +38,9 @@ export async function launchClaudeForeground(
   options: LaunchClaudeForegroundOptions = {},
 ): Promise<never> {
   const env = options.env ?? process.env;
-  const platform = options.platform ?? process.platform;
   const executable = await resolveClaudeExecutable(options);
   const spawnOptions: SpawnOptions = {
     env,
-    shell: shouldUseWindowsCommandShell(executable, platform),
     stdio: "inherit",
   };
 
@@ -75,8 +79,8 @@ export async function findExecutableOnPath(
   return undefined;
 }
 
-function shouldUseWindowsCommandShell(executable: string, platform: NodeJS.Platform): boolean {
-  return platform === "win32" && /\.(?:cmd|bat)$/i.test(executable);
+function isNativeWindowsExecutable(executable: string): boolean {
+  return /\.(?:com|exe)$/i.test(executable);
 }
 
 function formatClaudeLaunchError(error: unknown): Error {
