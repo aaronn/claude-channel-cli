@@ -2,7 +2,7 @@
 import path from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { assertClaudeChannelReceiverLaunch } from "./cli/claude-mcp.js";
-import { readChannelRuntimeConfig } from "./config/env.js";
+import { readChannelRuntimeConfig, type ChannelRuntimeConfig } from "./config/env.js";
 import { readOrCreateToken } from "./config/paths.js";
 import { errorMessage, HttpError } from "./errors.js";
 import { createBridgeHttpServer } from "./http/bridge-server.js";
@@ -12,20 +12,12 @@ import type { EndpointRecord } from "./registry/endpoint-record.js";
 import { formatEndpointBaseUrl } from "./registry/endpoint-url.js";
 import { createUniqueEndpointRecord, refreshEndpoint, removeEndpointRecord, renameEndpoint } from "./registry/endpoint-store.js";
 
-const config = readChannelRuntimeConfig();
+const { config, projectDir } = await readReceiverStartup();
 const pendingRequests = new PendingRequests();
 const channel = createClaudeChannel(pendingRequests);
-const projectDir = path.resolve(process.env.CLAUDE_CHANNEL_PROJECT_DIR ?? process.cwd());
 let endpointRecord: EndpointRecord | undefined;
 let endpointWriteQueue = Promise.resolve();
 let refreshTimer: NodeJS.Timeout | undefined;
-
-try {
-  await assertClaudeChannelReceiverLaunch({ cwd: projectDir });
-} catch (error) {
-  console.error(errorMessage(error));
-  process.exit(1);
-}
 
 const token = await readOrCreateToken();
 const httpServer = createBridgeHttpServer({
@@ -119,3 +111,14 @@ process.on("SIGINT", () => {
 process.on("SIGTERM", () => {
   void shutdown().finally(() => process.exit(0));
 });
+
+async function readReceiverStartup(): Promise<{ config: ChannelRuntimeConfig; projectDir: string }> {
+  const projectDir = path.resolve(process.env.CLAUDE_CHANNEL_PROJECT_DIR ?? process.cwd());
+  try {
+    await assertClaudeChannelReceiverLaunch({ cwd: projectDir });
+    return { config: readChannelRuntimeConfig(), projectDir };
+  } catch (error) {
+    console.error(errorMessage(error));
+    process.exit(1);
+  }
+}

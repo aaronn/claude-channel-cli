@@ -20,7 +20,7 @@ This makes the `claude-channel` command available on your `PATH`.
 
 - Claude Code 2.1.80 or newer.
 - Claude Code authenticated with claude.ai or a Console API key.
-- Claude Code Channels enabled. Enterprise deployments may need `channelsEnabled`.
+- Claude Code Channels enabled. Team and Enterprise organizations must enable `channelsEnabled`.
 - Channels are not available through Bedrock, Vertex, or Foundry providers.
 
 
@@ -45,10 +45,10 @@ Pass normal Claude Code flags after `start`:
 claude-channel start --model opus --continue
 ```
 
-Use `--` before Claude flags that would otherwise be handled by `claude-channel`, such as `--help`:
+Use `--` before Claude flags that would otherwise be handled by `claude-channel`, such as `--version`:
 
 ```sh
-claude-channel start -- --help
+claude-channel start -- --version
 ```
 
 `claude-channel start` passes a session-scoped MCP config to Claude Code, so ordinary `claude` launches are not changed and do not start the channel receiver.

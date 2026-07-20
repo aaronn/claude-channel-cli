@@ -10,6 +10,17 @@ import {
   setupCodexPlugin,
 } from "../src/cli/setup-codex-plugin.js";
 
+test("Codex MCP metadata does not create Claude project MCP configuration", async () => {
+  const packageRoot = path.resolve(import.meta.dirname, "..");
+  const manifest = JSON.parse(
+    await readFile(path.join(packageRoot, ".codex-plugin", "plugin.json"), "utf8"),
+  ) as { mcpServers?: unknown };
+
+  assert.equal(manifest.mcpServers, "./codex-mcp.json");
+  assert.equal(await exists(path.join(packageRoot, "codex-mcp.json")), true);
+  assert.equal(await exists(path.join(packageRoot, ".mcp.json")), false);
+});
+
 test("setupCodexPlugin creates the personal marketplace entry and plugin symlink", async () => {
   await withFixture(async ({ homeDir, packageRoot }) => {
     const result = await setupCodexPlugin({ homeDir, packageRoot });

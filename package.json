@@ -16,7 +16,7 @@
     "dist",
     ".codex-plugin",
     "assets",
-    ".mcp.json",
+    "codex-mcp.json",
     "skills",
     "README.md",
     "LICENSE"

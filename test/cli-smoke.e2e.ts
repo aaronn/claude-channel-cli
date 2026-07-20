@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import type { AddressInfo } from "node:net";
+import { CLAUDE_CHANNEL_RECEIVER_LAUNCH_ARG } from "../src/cli/claude-mcp.js";
 
 type ReceivedRequest = {
   method: string | undefined;
@@ -196,12 +197,43 @@ test("built receiver refuses stale persistent MCP launches before registering an
         ...process.env,
         HOME: tempHome,
         USERPROFILE: tempHome,
+        CLAUDE_CHANNEL_PORT: "invalid",
       },
     });
 
     assert.equal(result.code, 1);
     assert.match(result.stderr, /Persistent Claude MCP registration/);
     assert.match(result.stderr, /claude mcp remove --scope local claude-channel-cli/);
+    assert.doesNotMatch(result.stderr, /CLAUDE_CHANNEL_PORT|\n\s+at /);
+    assert.deepEqual(await endpointFiles(tempHome), []);
+  } finally {
+    await rm(tempHome, { recursive: true, force: true });
+    await rm(tempProject, { recursive: true, force: true });
+  }
+});
+
+test("built receiver reports marked startup configuration errors without a stack trace", async () => {
+  const repoDir = process.cwd();
+  const tempHome = await mkdtemp(path.join(tmpdir(), "claude-channel-home-"));
+  const tempProject = await mkdtemp(path.join(tmpdir(), "claude-channel-project-"));
+
+  try {
+    const result = await runNode([
+      path.join(repoDir, "dist/channel.js"),
+      CLAUDE_CHANNEL_RECEIVER_LAUNCH_ARG,
+    ], {
+      cwd: tempProject,
+      env: {
+        ...process.env,
+        HOME: tempHome,
+        USERPROFILE: tempHome,
+        CLAUDE_CHANNEL_PORT: "invalid",
+      },
+    });
+
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /CLAUDE_CHANNEL_PORT must be a non-negative integer/);
+    assert.doesNotMatch(result.stderr, /\n\s+at /);
     assert.deepEqual(await endpointFiles(tempHome), []);
   } finally {
     await rm(tempHome, { recursive: true, force: true });

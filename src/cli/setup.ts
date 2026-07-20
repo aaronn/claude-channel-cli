@@ -1,5 +1,5 @@
 import {
-  assertNoPersistentClaudeMcpProblems,
+  assertPersistentClaudeMcpClean,
   CLAUDE_CHANNEL_LAUNCH_COMMAND,
   inspectPersistentClaudeMcp,
   formatShellCommand,
@@ -7,10 +7,12 @@ import {
   type PersistentClaudeMcpInspection,
   type ServerCommand,
 } from "./claude-mcp.js";
+import { resolveClaudeExecutable } from "./claude-process.js";
 
 export type SetupOptions = {
   resolveServerCommand?: () => Promise<ServerCommand>;
-  inspectPersistentEntries?: () => Promise<PersistentClaudeMcpInspection>;
+  resolveClaudeExecutable?: () => Promise<string>;
+  inspectPersistentClaudeMcp?: () => Promise<PersistentClaudeMcpInspection>;
 };
 
 export type SetupResult = {
@@ -18,9 +20,9 @@ export type SetupResult = {
 };
 
 export async function setup(options: SetupOptions = {}): Promise<SetupResult> {
-  assertNoPersistentClaudeMcpProblems(
-    await (options.inspectPersistentEntries ?? inspectPersistentClaudeMcp)(),
-  );
+  const inspection = await (options.inspectPersistentClaudeMcp ?? inspectPersistentClaudeMcp)();
+  assertPersistentClaudeMcpClean(inspection);
+  await (options.resolveClaudeExecutable ?? resolveClaudeExecutable)();
 
   return {
     serverCommand: await (options.resolveServerCommand ?? resolveServerCommand)(),
